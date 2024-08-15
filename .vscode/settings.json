@@ -1,0 +1,15 @@
+{
+    "[html]": {
+        "editor.defaultFormatter": "j69.ejs-beautify"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "editor.defaultFormatter": null,
+    "html.format.enable": true,
+    "js-beautify.break_chained_methods": true,
+    "js-beautify.indent_inner_html": true,
+    "js-beautify.brace_style": "expand",
+    "typescript.tsdk": "node_modules\\typescript\\lib"
+
+}
