@@ -9,8 +9,8 @@
 
   <body>
     <a href="../">..</a>
-    <% dirs.forEach(element => { %> <a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
-    <% files.forEach(element => { %> <a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
+    <% dirs.forEach(element => { %> <br /><a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
+    <% files.forEach(element => { %> <br /><a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
   </body>
 
 </html>

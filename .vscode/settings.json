@@ -1,6 +1,6 @@
 {
     "[html]": {
-        "editor.defaultFormatter": "j69.ejs-beautify"
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "[typescript]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"

@@ -1,7 +1,20 @@
-import { type Server } from "bun";
+import { $, type Server, type Subprocess, resolve } from "bun";
+export async function startTSWatcher(server: Server, watchDir: URL) {
+    let dstcwd: string | undefined;
+    if (watchDir) {
+        dstcwd = process.platform === "win32" ? watchDir.pathname.substring(1) : watchDir.pathname;
+    }
 
-export async function startTSWatcher(server: Server) {
-    const tsc = Bun.spawn(["tsc", "--watch"], { stdout: "pipe", stderr: "pipe" });
+    console.log("Starting TypeScript watcher in", dstcwd);
+    // var tscResolved = await resolve("tsc", import.meta.dir);
+    //const tsc = await $`bun run ${tscResolved} --noEmit --watch ${dstcwd}/*.ts`.quiet().arrayBuffer();
+    let tsc: Subprocess | undefined;
+    try {
+        tsc = Bun.spawn(["tsc", "--watch", "--project", `${import.meta.dir}/tsconfig.json`], { stdout: "pipe", stderr: "pipe" });
+    } catch (e) {
+        console.error("TSC not found have you installed it globally?");
+        return;
+    }
     for await (const chunk of tsc.stdout as any) {
         const strVal = new TextDecoder().decode(chunk);
         const isError = /Found [1-9]\d* errors?\./.test(strVal);

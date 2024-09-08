@@ -1,6 +1,6 @@
 /// <reference path="./@types/serve.ts" />
 import { render } from "ejs";
-import Bun, { $ } from "bun";
+import Bun, { $, ShellError } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, exists, readFile } from "fs/promises";
@@ -8,6 +8,7 @@ import { type FileChangeInfo } from "fs/promises";
 import { startTSWatcher } from "./bunTSWatcher";
 import { getBunHMRPlugin } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
+
 
 
 export async function startBunDevServer(serverConfig: BunDevServerConfig) {
@@ -18,13 +19,27 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     serveOutputHtml: indexTemplate
   }
   const finalConfig = { ...defaultConfig, ...serverConfig };
-  const dsts = Bun.pathToFileURL(serverConfig.destingationPath);
-  const dst = process.platform === "win32" ? dsts.pathname.substring(1) : dsts.pathname;
-  console.log(dst);
+  const serveDestination = finalConfig.buildConfig.outdir ?? finalConfig.servePath ?? "dist";
+  const bunDestinationPath = Bun.pathToFileURL(serveDestination);
+  const dst = process.platform === "win32" ? bunDestinationPath.pathname.substring(1) : bunDestinationPath.pathname;
+  try {
+    await readdir(dst)
+  } catch (e) {
+    if ((e as ErrnoException).code === "ENOENT") {
+      console.log("Directory not found, creating it...");
+      await $`mkdir ${dst}`;
+    } else {
+      throw e;
+    }
+  }
   const buildCfg: Bun.BuildConfig = {
     ...serverConfig.buildConfig,
     outdir: dst,
     plugins: [...serverConfig.buildConfig.plugins ?? [], getBunHMRPlugin({ port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath })]
+  }
+
+  if (serverConfig.cleanServePath) {
+    await cleanDirectory(dst);
   }
 
   const bunServer = Bun.serve({
@@ -97,9 +112,8 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
       sendPings: true
     }
   });
-  if (serverConfig.cleanDestination) {
-    await $`rm -rf ${dst}/*`;
-  }
+
+
   const output = await Bun.build(buildCfg);
   publishOutputLogs(output, { filename: "Initial", eventType: "change" });
   publishIndexHTML(output, { filename: "Initial", eventType: "change" });
@@ -107,13 +121,17 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   //   console.log("ASDASD");
   // });
 
-  if (serverConfig.enableTypeScriptWatch) {
-    startTSWatcher(bunServer);
+  if (finalConfig.enableTypeScriptWatch) {
+    if(!finalConfig.watchDir) {
+      throw new Error("watchDir must be set to enable TypeScript watch");
+    }
+    const watchDir = Bun.pathToFileURL(finalConfig.watchDir);
+    startTSWatcher(bunServer, watchDir);
   }
   const watcher = watch("./src", { recursive: true });
   for await (const event of watcher) {
-    if (serverConfig.cleanDestination) {
-      await $`rm -rf ${dst}/*`;
+    if (finalConfig.cleanServePath) {
+      await cleanDirectory(dst);
     }
     const output = await Bun.build(buildCfg);
     publishOutputLogs(output, event);
@@ -148,6 +166,17 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
 
 }
 
+async function cleanDirectory(dst: string) {
+  const { stderr, exitCode } = await $`rm -rf ${dst}/*`.nothrow();
+  if (exitCode !== 0) {
+    if (stderr.indexOf("no matches found") > -1) {
+      console.log("Directory is empty");
+    } else {
+      throw stderr;
+    }
+  }
+}
+
 function convertBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"]
 
@@ -165,21 +194,3 @@ function convertBytes(bytes: number) {
 
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
 }
-
-startBunDevServer({
-  port: 3000,
-  cleanDestination: true,
-  destingationPath: "dist",
-  enableTypeScriptWatch: true,
-  buildConfig: {
-    entrypoints: ["./src/app.ts"],
-    // publicPath: "/",
-    target: "browser",
-    plugins: [],
-    sourcemap: "linked",
-    splitting: true,
-    loader: {
-      ".svg": "file"
-    }
-  }
-})
