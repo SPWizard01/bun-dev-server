@@ -1,4 +1,4 @@
-import { startBunDevServer } from "../index"
+import { startBunDevServer } from "bun-dev-server";
 
 startBunDevServer({
     buildConfig: {

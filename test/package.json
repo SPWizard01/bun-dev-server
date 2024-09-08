@@ -3,7 +3,8 @@
   "module": "app.ts",
   "type": "module",
   "devDependencies": {
-    "@types/bun": "^1.1.8"
+    "@types/bun": "^1.1.8",
+    "bun-dev-server": "^0.0.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
