@@ -1,5 +1,12 @@
 {
   "name": "bun-dev-server",
+  "description": "A simple development server for TypeScript projects using Bun",
+  "author": "SPWizard01 (https://github.com/SPWizard01/bun-dev-server)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SPWizard01/bun-dev-server"
+  },
+  "version": "0.0.1",
   "module": "index.ts",
   "type": "module",
   "scripts": {

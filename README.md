@@ -1,15 +1,26 @@
-# buntest
+# Bun Dev Server
 
-To install dependencies:
+```
+//devserver.ts
+import {startBunDevServer} from "bun-dev-server"
 
-```bash
-bun install
+startBunDevServer({
+    buildConfig: {
+        entrypoints: ["./src/app.ts"],
+        outdir: "dist",
+        splitting: true,
+        naming: {
+            asset: "assets/[name]-[hash].[ext]",
+            chunk: "chunks/[name]-[hash].[ext]",
+        }
+    },
+    cleanServePath: true,
+    port: 4567,
+    enableTypeScriptWatch: true,
+    watchDir: "./src",
+})
 ```
 
-To run:
-
-```bash
-bun run index.ts
 ```
-
-This project was created using `bun init` in bun v1.1.22. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+bun run devserver.ts
+```
