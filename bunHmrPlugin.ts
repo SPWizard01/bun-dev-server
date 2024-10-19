@@ -27,3 +27,7 @@ export function getBunHMRPlugin(config: BunDevServerSocketConfig) {
     }
     return bunHMRPlugin;
 }
+
+export function getBunHMRFooter(config: BunDevServerSocketConfig) {
+    return `(${bunHotReload(config)})()`;
+}

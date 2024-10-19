@@ -6,7 +6,7 @@ import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, exists, readFile } from "fs/promises";
 import { type FileChangeInfo } from "fs/promises";
 import { startTSWatcher } from "./bunTSWatcher";
-import { getBunHMRPlugin } from "./bunHmrPlugin";
+import { getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
 
 
@@ -32,16 +32,18 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
       throw e;
     }
   }
+  const buncfg = { port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath };
   const buildCfg: Bun.BuildConfig = {
     ...serverConfig.buildConfig,
     outdir: dst,
-    plugins: [...serverConfig.buildConfig.plugins ?? [], getBunHMRPlugin({ port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath })]
+    plugins: [...(serverConfig.buildConfig.plugins ?? [])],
+    footer: getBunHMRFooter(buncfg),
   }
 
   if (serverConfig.cleanServePath) {
     await cleanDirectory(dst);
   }
-
+  console.log("Starting Bun Dev Server on port", finalConfig.port);
   const bunServer = Bun.serve({
     port: finalConfig.port,
     development: true,
@@ -122,7 +124,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   // });
 
   if (finalConfig.enableTypeScriptWatch) {
-    if(!finalConfig.watchDir) {
+    if (!finalConfig.watchDir) {
       throw new Error("watchDir must be set to enable TypeScript watch");
     }
     const watchDir = Bun.pathToFileURL(finalConfig.watchDir);

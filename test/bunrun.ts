@@ -1,4 +1,4 @@
-import { startBunDevServer } from "bun-dev-server";
+import { startBunDevServer } from "../index";
 
 startBunDevServer({
     buildConfig: {
@@ -8,7 +8,8 @@ startBunDevServer({
         naming: {
             asset: "assets/[name]-[hash].[ext]",
             chunk: "chunks/[name]-[hash].[ext]",
-        }
+        },
+        sourcemap: "linked"
     },
     cleanServePath: true,
     port: 4567,

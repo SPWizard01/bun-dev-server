@@ -1,6 +1,10 @@
 import { type BunDevServerSocketConfig } from "./bunServeConfig";
 
 function hotReload() {
+  if (window.BUN_HMR_INITED) {
+    return;
+  }
+  window.BUN_HMR_INITED = true;
   const hmrSock = new WebSocket("[REPLACE_ENDPOINT]");
   hmrSock.addEventListener("error", (err) => {
     console.error("HMR ERROR", err);
