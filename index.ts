@@ -49,8 +49,15 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     development: true,
     tls: finalConfig.tls,
     async fetch(req, server) {
+      if(req.method === "OPTIONS") {
+        const response = new Response("", { status: 200 });
+        augumentHeaders(response);
+        return response;
+      }
       if (req.url.toLowerCase().endsWith("/favicon.ico")) {
-        return new Response("", { status: 404 });
+        const response = new Response("", { status: 404 });
+        augumentHeaders(response);
+        return response;
       }
       if (req.url.toLowerCase().endsWith(finalConfig.websocketPath)) {
         if (server.upgrade(req)) {
@@ -75,7 +82,9 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
 
       if (!isDirectory) {
         const fl = Bun.file(dst + requestPath);
-        return new Response(fl);
+        const response = new Response(fl);
+        augumentHeaders(response);
+        return response;
       }
       try {
         const allEntries = await readdir(dst + requestPath, {
@@ -98,9 +107,13 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
             };
           });
         const rnd = render(finalConfig.serveOutputEjs, { dirs, files });
-        return new Response(rnd, { headers: { "Content-Type": "text/html" } });
+        const response = new Response(rnd, { headers: { "Content-Type": "text/html" } });
+        augumentHeaders(response);
+        return response;
       } catch {
-        return new Response("Not Found", { status: 404 });
+        const response = new Response("Not Found", { status: 404 });
+        augumentHeaders(response);
+        return response;
       }
     },
 
@@ -166,6 +179,11 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     }
   }
 
+}
+
+function augumentHeaders(response: Response) {
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 }
 
 async function cleanDirectory(dst: string) {

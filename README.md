@@ -3,6 +3,7 @@
 ```
 //devserver.ts
 import {startBunDevServer} from "bun-dev-server"
+import { file } from "bun"
 
 startBunDevServer({
     buildConfig: {
@@ -13,6 +14,10 @@ startBunDevServer({
             asset: "assets/[name]-[hash].[ext]",
             chunk: "chunks/[name]-[hash].[ext]",
         }
+    },
+    tls: {
+        cert: file("./serve_cert.pem"),
+        key: file("./serve_key.pem"),
     },
     cleanServePath: true,
     port: 4567,
