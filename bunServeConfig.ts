@@ -5,6 +5,8 @@ export interface BunDevServerConfig extends Partial<BunDevServerSocketConfig> {
     buildConfig: BuildConfig;
     watchDir?: string;
     enableTypeScriptWatch?: boolean;
+    writeManifest?: boolean;
+    manifestName?: string;
     /**
      * The path to the directory to serve files from.
      * Takes precedence over `buildConfig.outdir`.

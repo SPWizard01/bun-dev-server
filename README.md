@@ -19,6 +19,7 @@ startBunDevServer({
         cert: file("./serve_cert.pem"),
         key: file("./serve_key.pem"),
     },
+    writeManifest: true,
     cleanServePath: true,
     port: 4567,
     enableTypeScriptWatch: true,

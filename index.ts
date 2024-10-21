@@ -8,6 +8,7 @@ import { type FileChangeInfo } from "fs/promises";
 import { startTSWatcher } from "./bunTSWatcher";
 import { getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
+import { writeManifest } from "./bunManifest";
 
 
 
@@ -49,7 +50,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     development: true,
     tls: finalConfig.tls,
     async fetch(req, server) {
-      if(req.method === "OPTIONS") {
+      if (req.method === "OPTIONS") {
         const response = new Response("", { status: 200 });
         augumentHeaders(response);
         return response;
@@ -132,6 +133,9 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   const output = await Bun.build(buildCfg);
   publishOutputLogs(output, { filename: "Initial", eventType: "change" });
   publishIndexHTML(output, { filename: "Initial", eventType: "change" });
+  if (finalConfig.writeManifest) {
+    writeManifest(output, dst, finalConfig.manifestName);
+  }
   // $`tsc --watch`.then((tsc) => {
   //   console.log("ASDASD");
   // });
@@ -151,6 +155,10 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     const output = await Bun.build(buildCfg);
     publishOutputLogs(output, event);
     publishIndexHTML(output, event);
+    if (finalConfig.writeManifest) {
+      writeManifest(output, dst, finalConfig.manifestName);
+    }
+
   }
 
   function publishOutputLogs(output: Bun.BuildOutput, event: FileChangeInfo<string>) {
@@ -170,13 +178,15 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   }
 
   function publishIndexHTML(output: Bun.BuildOutput, event: FileChangeInfo<string>) {
-    const ep = output.outputs.find(o => o.kind === "entry-point");
-    if (ep) {
+    const eps = output.outputs.filter(o => o.kind === "entry-point");
+    const hashedImports: string[] = [];
+    for (const ep of eps) {
       const basePathUrl = Bun.pathToFileURL(dst);
       const epUrl = Bun.pathToFileURL(ep.path);
       const hashedImport = `${epUrl.href.replace(basePathUrl.href, "")}?${ep.hash}`;
-      Bun.write(dst + "/index.html", render(finalConfig.serveOutputHtml, { hashedImport }));
+      hashedImports.push(hashedImport);
     }
+    Bun.write(dst + "/index.html", render(finalConfig.serveOutputHtml, { hashedImports }));
   }
 
 }
