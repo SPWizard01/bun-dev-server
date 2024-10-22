@@ -158,6 +158,9 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     if (finalConfig.writeManifest) {
       writeManifest(output, dst, finalConfig.manifestName);
     }
+    if(finalConfig.reloadOnChange) {
+      bunServer.publish("message", JSON.stringify({ type: "reload" }));
+    }
 
   }
 
