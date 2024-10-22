@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/SPWizard01/bun-dev-server"
   },
-  "version": "0.0.7",
+  "version": "0.0.8",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
@@ -14,13 +14,13 @@
     "serve": "bun --hot ./serve.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/ejs": "^3.1.5"
+    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "ejs": "^3.1.10"
+    "ejs": "^3.1.10",
+    "@types/ejs": "^3.1.5"
   }
 }
