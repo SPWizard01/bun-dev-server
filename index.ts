@@ -1,4 +1,4 @@
-/// <reference path="./@types/serve.ts" />
+/// <reference path="./@types/fileTypes.d.ts" />
 import { render } from "ejs";
 import Bun, { $, ShellError } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };

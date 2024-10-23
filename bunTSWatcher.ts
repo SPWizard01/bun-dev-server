@@ -1,6 +1,6 @@
 import { $, type Server, type Subprocess, resolve } from "bun";
 export async function startTSWatcher(server: Server, watchDir: URL) {
-    let dstcwd: string | undefined;
+    let dstcwd = process.cwd();
     if (watchDir) {
         dstcwd = process.platform === "win32" ? watchDir.pathname.substring(1) : watchDir.pathname;
     }
@@ -10,7 +10,7 @@ export async function startTSWatcher(server: Server, watchDir: URL) {
     //const tsc = await $`bun run ${tscResolved} --noEmit --watch ${dstcwd}/*.ts`.quiet().arrayBuffer();
     let tsc: Subprocess | undefined;
     try {
-        tsc = Bun.spawn(["tsc", "--watch", "--project", `${import.meta.dir}/tsconfig.json`], { stdout: "pipe", stderr: "pipe" });
+        tsc = Bun.spawn(["tsc", "--watch", "--project", `${process.cwd()}/tsconfig.json`], { stdout: "pipe", stderr: "pipe", cwd: dstcwd });
     } catch (e) {
         console.error("TSC not found have you installed it globally?");
         return;
