@@ -52,12 +52,12 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     async fetch(req, server) {
       if (req.method === "OPTIONS") {
         const response = new Response("", { status: 200 });
-        augumentHeaders(response);
+        augumentHeaders(req, response);
         return response;
       }
       if (req.url.toLowerCase().endsWith("/favicon.ico")) {
         const response = new Response("", { status: 404 });
-        augumentHeaders(response);
+        augumentHeaders(req, response);
         return response;
       }
       if (req.url.toLowerCase().endsWith(finalConfig.websocketPath)) {
@@ -75,17 +75,34 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
         } catch (e) {
           if ((e as ErrnoException).code === "EISDIR") {
             isDirectory = true;
-          } else {
+          }
+          else {
             throw e;
           }
         }
+      } else {
+        const response = new Response("", { status: 404 });
+        augumentHeaders(req, response);
+        return response;
       }
 
       if (!isDirectory) {
-        const fl = Bun.file(dst + requestPath);
-        const response = new Response(fl);
-        augumentHeaders(response);
-        return response;
+        try {
+          const fl = Bun.file(dst + requestPath);
+          const response = new Response(fl);
+          augumentHeaders(req, response);
+          return response;
+        }
+        catch (e) {
+          if ((e as ErrnoException).code === "ENOENT") {
+            const response = new Response("", { status: 404 });
+            augumentHeaders(req, response);
+            return response;
+          }
+          else {
+            throw e;
+          }
+        }
       }
       try {
         const allEntries = await readdir(dst + requestPath, {
@@ -109,11 +126,11 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
           });
         const rnd = render(finalConfig.serveOutputEjs, { dirs, files });
         const response = new Response(rnd, { headers: { "Content-Type": "text/html" } });
-        augumentHeaders(response);
+        augumentHeaders(req, response);
         return response;
       } catch {
         const response = new Response("Not Found", { status: 404 });
-        augumentHeaders(response);
+        augumentHeaders(req, response);
         return response;
       }
     },
@@ -158,7 +175,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     if (finalConfig.writeManifest) {
       writeManifest(output, dst, finalConfig.manifestName);
     }
-    if(finalConfig.reloadOnChange) {
+    if (finalConfig.reloadOnChange) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }
 
@@ -194,9 +211,10 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
 
 }
 
-function augumentHeaders(response: Response) {
-  response.headers.set("Access-Control-Allow-Origin", "*");
+function augumentHeaders(request: Request, response: Response) {
+  response.headers.set("Access-Control-Allow-Origin", request.headers.get("origin") ?? "*");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  response.headers.set("Access-Control-Allow-Credentials", "true");
 }
 
 async function cleanDirectory(dst: string) {
