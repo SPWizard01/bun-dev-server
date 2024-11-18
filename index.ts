@@ -151,7 +151,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   publishOutputLogs(output, { filename: "Initial", eventType: "change" });
   publishIndexHTML(output, { filename: "Initial", eventType: "change" });
   if (finalConfig.writeManifest) {
-    writeManifest(output, dst, finalConfig.manifestName);
+    writeManifest(output, dst, finalConfig.manifestWithHash, finalConfig.manifestName);
   }
   // $`tsc --watch`.then((tsc) => {
   //   console.log("ASDASD");
@@ -173,7 +173,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     publishOutputLogs(output, event);
     publishIndexHTML(output, event);
     if (finalConfig.writeManifest) {
-      writeManifest(output, dst, finalConfig.manifestName);
+      writeManifest(output, dst, finalConfig.manifestWithHash, finalConfig.manifestName);
     }
     if (finalConfig.reloadOnChange) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
