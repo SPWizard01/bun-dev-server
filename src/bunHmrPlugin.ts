@@ -1,13 +1,27 @@
 import type { BunPlugin, Loader } from "bun";
 import { bunHotReload } from "./bunClientHmr";
 import { readFile } from "fs/promises";
-import { type BunDevServerSocketConfig } from "./bunServeConfig";
-export function getBunHMRPlugin(config: BunDevServerSocketConfig) {
+
+export interface BunHMROptions {
+    secure?: boolean;
+    port: number;
+    websocketPath?: string;
+  }
+
+export function bunHotReloadPlugin(config: BunHMROptions) {
     const bunHMRPlugin: BunPlugin = {
         name: "hmr",
         target: "browser",
         setup(build) {
-            let hmrAdded = false;
+            const entryPoints: string[] = [];
+            const addedEnryPoints = new Set<string>();
+            build.config.entrypoints.forEach(entry => {
+                let entryPath = entry.replace(/^\.*/, "");
+                if (process.platform === "win32") {
+                    entryPath = entryPath.replace(/\//g, "\\");
+                }
+                entryPoints.push(entryPath);
+            })
             build.onLoad({ filter: /\.m?tsx?/ }, async (args) => {
                 const contents = await readFile(args.path, { encoding: "utf-8" });
                 const isTSx = /\.m?tsx$/.test(args.path);
@@ -15,8 +29,9 @@ export function getBunHMRPlugin(config: BunDevServerSocketConfig) {
                 const isJS = /\.m?js$/.test(args.path);
                 const isTS = /\.m?ts$/.test(args.path);
                 const loader: Loader = isTSx ? "tsx" : isJSx ? "jsx" : isTS ? "ts" : isJS ? "js" : "text";
-                if (!hmrAdded) {
-                    hmrAdded = true;
+                const isEntry = entryPoints.some(entry => args.path.endsWith(entry))
+                if (!addedEnryPoints.has(args.path) && isEntry) {
+                    addedEnryPoints.add(args.path);
                     return { contents: `import "bun-hot-reload"\n` + contents, loader };
                 }
                 return { contents, loader };
@@ -33,6 +48,6 @@ export function getBunHMRPlugin(config: BunDevServerSocketConfig) {
     return bunHMRPlugin;
 }
 
-export function getBunHMRFooter(config: BunDevServerSocketConfig) {
-    return `(${bunHotReload(config)})()`;
+export function getBunHMRFooter(config: BunHMROptions) {
+    return `;(${bunHotReload(config)})();`;
 }

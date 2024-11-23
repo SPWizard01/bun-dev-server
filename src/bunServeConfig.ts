@@ -3,11 +3,13 @@ import { type BuildConfig, type TLSOptions } from "bun";
 export interface BunDevServerConfig extends Partial<BunDevServerSocketConfig> {
     port: number;
     buildConfig: BuildConfig;
-    watchDir?: string;
-    enableTypeScriptWatch?: boolean;
+    watchDir: string;
+    //enableTypeScriptWatch?: boolean;
+    enableTSC?: boolean;
     writeManifest?: boolean;
     manifestName?: string;
     manifestWithHash?: boolean;
+    hotReload?: "plugin" | "footer";
     reloadOnChange?: boolean;
     /**
      * The path to the directory to serve files from.
@@ -23,5 +25,5 @@ export interface BunDevServerConfig extends Partial<BunDevServerSocketConfig> {
 export interface BunDevServerSocketConfig {
     port: number;
     tls?: TLSOptions;
-    websocketPath: string;
+    websocketPath?: string;
 }

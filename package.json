@@ -13,7 +13,13 @@
     "reload",
     "hot"
   ],
-  "version": "0.3.0",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "version": "0.4.0",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
@@ -21,13 +27,15 @@
     "serve": "bun --hot ./serve.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "bun": "^1.1.36"
   },
   "peerDependencies": {
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@types/ejs": "^3.1.5",
     "ejs": "^3.1.10",
-    "@types/ejs": "^3.1.5"
+    "picocolors": "^1.1.1"
   }
 }

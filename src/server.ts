@@ -1,28 +1,32 @@
-/// <reference path="./@types/fileTypes.d.ts" />
 import { render } from "ejs";
-import Bun, { $, ShellError } from "bun";
+import Bun, { $ } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, exists, readFile } from "fs/promises";
 import { type FileChangeInfo } from "fs/promises";
-import { startTSWatcher } from "./bunTSWatcher";
-import { getBunHMRFooter } from "./bunHmrPlugin";
+import { bunHotReloadPlugin, getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
 import { writeManifest } from "./bunManifest";
-
+import { performTSC } from "./tsChecker";
+import { DEFAULT_HMR_PATH } from "./bunClientHmr";
 
 
 export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   const defaultConfig = {
     port: 3000,
-    websocketPath: "/hmr-ws",
+    websocketPath: DEFAULT_HMR_PATH,
     serveOutputEjs: serveTemplate,
     serveOutputHtml: indexTemplate
   }
   const finalConfig = { ...defaultConfig, ...serverConfig };
+  if (!finalConfig.watchDir) {
+    throw new Error("watchDir must be set");
+  }
   const serveDestination = finalConfig.buildConfig.outdir ?? finalConfig.servePath ?? "dist";
   const bunDestinationPath = Bun.pathToFileURL(serveDestination);
+  const bunWatchDirPath = Bun.pathToFileURL(finalConfig.watchDir);
   const dst = process.platform === "win32" ? bunDestinationPath.pathname.substring(1) : bunDestinationPath.pathname;
+  const srcWatch = process.platform === "win32" ? bunWatchDirPath.pathname.substring(1) : bunWatchDirPath.pathname;
   try {
     await readdir(dst)
   } catch (e) {
@@ -36,9 +40,20 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   const buncfg = { port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath };
   const buildCfg: Bun.BuildConfig = {
     ...serverConfig.buildConfig,
-    outdir: dst,
-    plugins: [...(serverConfig.buildConfig.plugins ?? [])],
-    footer: getBunHMRFooter(buncfg),
+    outdir: dst
+  }
+
+  if(finalConfig.hotReload === "footer") {
+    if(!buildCfg.footer) {
+      buildCfg.footer = "";
+    }
+    buildCfg.footer += getBunHMRFooter(buncfg);
+  }
+  if(finalConfig.hotReload === "plugin") {
+    if(!buildCfg.plugins) {
+      buildCfg.plugins = [];
+    }
+    buildCfg.plugins.push(bunHotReloadPlugin(buncfg));
   }
 
   if (serverConfig.cleanServePath) {
@@ -153,18 +168,9 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
   if (finalConfig.writeManifest) {
     writeManifest(output, dst, finalConfig.manifestWithHash, finalConfig.manifestName);
   }
-  // $`tsc --watch`.then((tsc) => {
-  //   console.log("ASDASD");
-  // });
+  await performTSC(finalConfig);
 
-  if (finalConfig.enableTypeScriptWatch) {
-    if (!finalConfig.watchDir) {
-      throw new Error("watchDir must be set to enable TypeScript watch");
-    }
-    const watchDir = Bun.pathToFileURL(finalConfig.watchDir);
-    startTSWatcher(bunServer, watchDir);
-  }
-  const watcher = watch("./src", { recursive: true });
+  const watcher = watch(srcWatch, { recursive: true });
   for await (const event of watcher) {
     if (finalConfig.cleanServePath) {
       await cleanDirectory(dst);
@@ -175,6 +181,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     if (finalConfig.writeManifest) {
       writeManifest(output, dst, finalConfig.manifestWithHash, finalConfig.manifestName);
     }
+    await performTSC(finalConfig);
     if (finalConfig.reloadOnChange) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }

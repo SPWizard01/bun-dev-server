@@ -1,4 +1,6 @@
-import { type BunDevServerSocketConfig } from "./bunServeConfig";
+import type { BunHMROptions } from "./bunHmrPlugin";
+
+
 
 function hotReload() {
   if ((window as any).BUN_HMR_INITED) {
@@ -43,9 +45,10 @@ function hotReload() {
     }
   });
 }
-
-export function bunHotReload(bunServerConfig: BunDevServerSocketConfig) {
-  const endPath = bunServerConfig.websocketPath.startsWith("/") ? bunServerConfig.websocketPath : `/${bunServerConfig.websocketPath}`;
-  const path = `${(bunServerConfig.tls ? "wss" : "ws")}://localhost:${bunServerConfig.port}${endPath}`;
+export const DEFAULT_HMR_PATH = "/hmr-ws";
+export function bunHotReload(bunServerConfig: BunHMROptions) {
+  const socketPath = bunServerConfig.websocketPath || DEFAULT_HMR_PATH;
+  const endPath = socketPath.startsWith("/") ? socketPath : `/${socketPath}`;
+  const path = `${(bunServerConfig.secure ? "wss" : "ws")}://localhost:${bunServerConfig.port}${endPath}`;
   return hotReload.toString().replace("[REPLACE_ENDPOINT]", path);
 }
