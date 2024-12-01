@@ -8,8 +8,11 @@ export async function performTSC(finalConfig: BunDevServerConfig) {
         const tsc = (await $`tsc`.nothrow().quiet());
         if (tsc.exitCode === 0) {
             console.log(pc.bgGreen("✔ [SUCCESS]"), "TSC check passed");
+            return true;
         } else {
             console.log(pc.bgRed("✘ [ERROR]"), `\r\n${tsc.stdout.toString()}`);
+            return false;
         }
     }
+    return true;
 }

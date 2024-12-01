@@ -9,6 +9,8 @@
   "keywords": [
     "bun",
     "devserver",
+    "dev",
+    "server",
     "hmr",
     "reload",
     "hot"
@@ -19,7 +21,7 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "version": "0.4.0",
+  "version": "0.5.0",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
@@ -27,14 +29,14 @@
     "serve": "bun --hot ./serve.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "bun": "^1.1.36"
+    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.7.2"
   },
   "dependencies": {
     "@types/ejs": "^3.1.5",
+    "debounce": "^2.2.0",
     "ejs": "^3.1.10",
     "picocolors": "^1.1.1"
   }
