@@ -2,7 +2,7 @@ import { render } from "ejs";
 import Bun, { $ } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
-import { watch, readdir, exists, readFile } from "fs/promises";
+import { watch, readdir, access, readFile, constants } from "fs/promises";
 import { type FileChangeInfo } from "fs/promises";
 import { bunHotReloadPlugin, getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
@@ -68,90 +68,27 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     port: finalConfig.port,
     development: true,
     tls: finalConfig.tls,
+    static: {
+      "/favicon.ico": withCORSHeaders(new Response("", { status: 404 })),
+      ...finalConfig.static
+    },
     async fetch(req, server) {
       if (req.method === "OPTIONS") {
-        const response = new Response("", { status: 200 });
-        augumentHeaders(req, response);
-        return response;
-      }
-      if (req.url.toLowerCase().endsWith("/favicon.ico")) {
-        const response = new Response("", { status: 404 });
-        augumentHeaders(req, response);
-        return response;
+        finalConfig.logRequests && console.log(`${200} ${req.url} OPTIONS`);
+        return withCORSHeaders(new Response("", { status: 200 }), req);;
       }
       if (req.url.toLowerCase().endsWith(finalConfig.websocketPath!)) {
+        finalConfig.logRequests && console.log(`${req.url} Socket Upgrade`);
         if (server.upgrade(req)) {
           return;
         }
       }
       const url = new URL(req.url);
-      const requestPath = url.pathname;
-      const objThere = await exists(destinationPath + requestPath);
-      let isDirectory = false;
-      if (objThere) {
-        try {
-          await readFile(destinationPath + requestPath);
-        } catch (e) {
-          if ((e as ErrnoException).code === "EISDIR") {
-            isDirectory = true;
-          }
-          else {
-            throw e;
-          }
-        }
-      } else {
-        const response = new Response("", { status: 404 });
-        augumentHeaders(req, response);
-        return response;
+      let requestPath = url.pathname;
+      if (requestPath.toLowerCase() === "/index.html") {
+        requestPath = "/";
       }
-
-      if (!isDirectory) {
-        try {
-          const fl = Bun.file(destinationPath + requestPath);
-          const response = new Response(fl);
-          augumentHeaders(req, response);
-          return response;
-        }
-        catch (e) {
-          if ((e as ErrnoException).code === "ENOENT") {
-            const response = new Response("", { status: 404 });
-            augumentHeaders(req, response);
-            return response;
-          }
-          else {
-            throw e;
-          }
-        }
-      }
-      try {
-        const allEntries = await readdir(destinationPath + requestPath, {
-          withFileTypes: true,
-        });
-        const dirs = allEntries
-          .filter((entry) => entry.isDirectory())
-          .map((entry) => {
-            return {
-              requestPath: requestPath === "/" ? "" : requestPath,
-              name: entry.name,
-            };
-          });
-        const files = allEntries
-          .filter((entry) => entry.isFile())
-          .map((entry) => {
-            return {
-              requestPath: requestPath === "/" ? "" : requestPath,
-              name: entry.name,
-            };
-          });
-        const rnd = render(finalConfig.serveOutputEjs!, { dirs, files });
-        const response = new Response(rnd, { headers: { "Content-Type": "text/html" } });
-        augumentHeaders(req, response);
-        return response;
-      } catch {
-        const response = new Response("Not Found", { status: 404 });
-        augumentHeaders(req, response);
-        return response;
-      }
+      return handlePathRequest(requestPath, req, finalConfig, destinationPath);
     },
 
 
@@ -189,6 +126,12 @@ const debouncedbuildAndNotify = debounce(async (finalConfig: BunDevServerConfig,
   }
 }, watchDelay, { immediate: true });
 
+function handleErrorResponse(req: Request, err: unknown) {
+  const msg = `Error while processing request ${req.url}`;
+  console.error(msg, err);
+  return withCORSHeaders(new Response(msg, { status: 500 }), req);
+}
+
 function publishOutputLogs(bunServer: Bun.Server, output: Bun.BuildOutput, event: FileChangeInfo<string>) {
   output.logs.forEach(console.log);
   bunServer.publish("message", JSON.stringify({ type: "message", message: `[Bun HMR] ${event.filename} ${event.eventType}` }));
@@ -217,10 +160,11 @@ function publishIndexHTML(destinationPath: string, template: string, output: Bun
   Bun.write(destinationPath + "/index.html", render(template, { hashedImports }));
 }
 
-function augumentHeaders(request: Request, response: Response) {
-  response.headers.set("Access-Control-Allow-Origin", request.headers.get("origin") ?? "*");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+function withCORSHeaders(response: Response, request?: Request) {
+  response.headers.set("Access-Control-Allow-Origin", request?.headers.get("origin") ?? "*");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
   response.headers.set("Access-Control-Allow-Credentials", "true");
+  return response;
 }
 
 async function cleanDirectory(dst: string) {
@@ -250,4 +194,84 @@ function convertBytes(bytes: number) {
   }
 
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
+}
+
+async function handlePathRequest(requestPath: string, req: Request, finalConfig: BunDevServerConfig, destinationPath: string) {
+  const fsPath = destinationPath + requestPath;
+  const objThere = await checkObjectExists(fsPath, req);
+  let isDirectory = false;
+  if (objThere) {
+    try {
+      await readFile(fsPath);
+    } catch (e) {
+      if ((e as ErrnoException).code === "EISDIR") {
+        isDirectory = true;
+      }
+      else {
+        throw e;
+      }
+    }
+  } else {
+    finalConfig.logRequests && console.log(`${404} ${req.url}`);
+    return withCORSHeaders(new Response("", { status: 404 }), req);
+  }
+
+  if (!isDirectory) {
+    try {
+      const fl = Bun.file(fsPath);
+      finalConfig.logRequests && console.log(`${200} ${req.url}`);
+      return withCORSHeaders(new Response(fl), req);;
+    }
+    catch (e) {
+      if ((e as ErrnoException)?.code === "ENOENT") {
+        finalConfig.logRequests && console.log(`${404} ${req.url}`);
+        return withCORSHeaders(new Response("", { status: 404 }), req);;
+      }
+      else {
+        return handleErrorResponse(req, e);
+      }
+    }
+  }
+  try {
+    const allEntries = await readdir(fsPath, {
+      withFileTypes: true,
+    });
+    const dirs = allEntries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => {
+        return {
+          requestPath: requestPath === "/" ? "" : requestPath,
+          name: entry.name,
+        };
+      });
+    const files = allEntries
+      .filter((entry) => entry.isFile())
+      .map((entry) => {
+        return {
+          requestPath: requestPath === "/" ? "" : requestPath,
+          name: entry.name,
+        };
+      });
+    const rnd = render(finalConfig.serveOutputEjs!, { dirs, files });
+    finalConfig.logRequests && console.log(`${200} ${req.url}`);
+    return withCORSHeaders(new Response(rnd, { headers: { "Content-Type": "text/html" } }), req);;
+  } catch (err) {
+    return handleErrorResponse(req, err);
+  }
+}
+
+async function checkObjectExists(fsPath: string, req: Request) {
+  try {
+    await access(fsPath, constants.R_OK);
+    return true;
+  }
+  catch (e) {
+    if ((e as ErrnoException)?.code === "ENOENT") {
+      return false;
+    }
+    const msg = `Error while accessing path ${fsPath}`;
+    console.error(msg, e);
+    return false;
+  }
+
 }
