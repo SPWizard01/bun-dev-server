@@ -27,6 +27,11 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
     cleanServePath?: boolean;
     serveOutputEjs?: string;
     serveOutputHtml?: string;
+    /**
+     * Using EJS Index HTML template.
+     * Defaults to true.
+     */
+    createDefaultIndexHTML?: boolean;
 }
 
 export interface BunServeConfig {

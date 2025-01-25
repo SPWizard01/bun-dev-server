@@ -18,6 +18,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     websocketPath: DEFAULT_HMR_PATH,
     serveOutputEjs: serveTemplate,
     serveOutputHtml: indexTemplate,
+    createDefaultIndexHTML: true,
   }
   const finalConfig: BunDevServerConfig = { ...defaultConfig, ...serverConfig };
   if (finalConfig.watchDelay) {
@@ -85,9 +86,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
       }
       const url = new URL(req.url);
       let requestPath = url.pathname;
-      if (requestPath.toLowerCase() === "/index.html") {
-        requestPath = "/";
-      }
+
       return handlePathRequest(requestPath, req, finalConfig, destinationPath);
     },
 
@@ -116,7 +115,9 @@ const debouncedbuildAndNotify = debounce(async (finalConfig: BunDevServerConfig,
   }
   const output = await Bun.build(buildCfg);
   publishOutputLogs(bunServer, output, event);
-  publishIndexHTML(destinationPath, finalConfig.serveOutputHtml!, output, event);
+  if (finalConfig.createDefaultIndexHTML) {
+    publishIndexHTML(destinationPath, finalConfig.serveOutputHtml!, output, event);
+  }
   if (finalConfig.writeManifest) {
     writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
   }
@@ -197,7 +198,7 @@ function convertBytes(bytes: number) {
 }
 
 async function handlePathRequest(requestPath: string, req: Request, finalConfig: BunDevServerConfig, destinationPath: string) {
-  const fsPath = destinationPath + requestPath;
+  let fsPath = destinationPath + requestPath;
   const objThere = await checkObjectExists(fsPath, req);
   let isDirectory = false;
   if (objThere) {
@@ -212,8 +213,13 @@ async function handlePathRequest(requestPath: string, req: Request, finalConfig:
       }
     }
   } else {
-    finalConfig.logRequests && console.log(`${404} ${req.url}`);
-    return withCORSHeaders(new Response("", { status: 404 }), req);
+    if (requestPath.toLowerCase() !== "/index.html") {
+      finalConfig.logRequests && console.log(`${404} ${req.url}`);
+      return withCORSHeaders(new Response("", { status: 404 }), req);
+    }
+    requestPath = "/";
+    isDirectory = true;
+    fsPath = destinationPath + requestPath
   }
 
   if (!isDirectory) {
