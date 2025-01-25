@@ -4,6 +4,7 @@ import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, access, readFile, constants } from "fs/promises";
 import { type FileChangeInfo } from "fs/promises";
+import { resolve } from "path"
 import { bunHotReloadPlugin, getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig } from "./bunServeConfig";
 import { writeManifest } from "./bunManifest";
@@ -12,26 +13,41 @@ import { DEFAULT_HMR_PATH } from "./bunClientHmr";
 import debounce from "debounce"
 let watchDelay = 1000;
 
-export async function startBunDevServer(serverConfig: BunDevServerConfig) {
+export async function startBunDevServer(serverConfig: BunDevServerConfig, importMeta: ImportMeta) {
   const defaultConfig: Partial<BunDevServerConfig> = {
     port: 3000,
     websocketPath: DEFAULT_HMR_PATH,
     serveOutputEjs: serveTemplate,
     serveOutputHtml: indexTemplate,
     createDefaultIndexHTML: true,
+    tscConfigPath: resolve(importMeta.dir, "./tsconfig.json"),
   }
+
   const finalConfig: BunDevServerConfig = { ...defaultConfig, ...serverConfig };
   if (finalConfig.watchDelay) {
     watchDelay = finalConfig.watchDelay;
   }
+  if(serverConfig.tscConfigPath) {
+    finalConfig.tscConfigPath = resolve(importMeta.dir, serverConfig.tscConfigPath);
+  }
   if (!finalConfig.watchDir) {
     throw new Error("watchDir must be set");
   }
-  const serveDestination = finalConfig.buildConfig.outdir ?? finalConfig.servePath ?? "dist";
-  const bunDestinationPath = Bun.pathToFileURL(serveDestination);
-  const bunWatchDirPath = Bun.pathToFileURL(finalConfig.watchDir);
-  const destinationPath = process.platform === "win32" ? bunDestinationPath.pathname.substring(1) : bunDestinationPath.pathname;
-  const srcWatch = process.platform === "win32" ? bunWatchDirPath.pathname.substring(1) : bunWatchDirPath.pathname;
+  const servePart = finalConfig.buildConfig.outdir ?? finalConfig.servePath ?? "./dist";
+
+  const serveDestination = resolve(importMeta.dir, servePart);
+  const watchDestination = resolve(importMeta.dir, finalConfig.watchDir);
+
+  const allEntries = serverConfig.buildConfig.entrypoints.splice(0, serverConfig.buildConfig.entrypoints.length);
+  const resolvedEntries = allEntries.map(e => resolve(importMeta.dir, e));
+  serverConfig.buildConfig.entrypoints = resolvedEntries;
+  // const bunDestinationPath = Bun.pathToFileURL(serveDestination);
+  // const bunWatchDirPath = Bun.pathToFileURL(watchDestination);
+  // const destinationPath = process.platform === "win32" ? bunDestinationPath.pathname.substring(1) : bunDestinationPath.pathname;
+  // const srcWatch = process.platform === "win32" ? bunWatchDirPath.pathname.substring(1) : bunWatchDirPath.pathname;
+
+  const destinationPath = serveDestination;
+  const srcWatch = watchDestination;
   try {
     await readdir(destinationPath)
   } catch (e) {
@@ -101,15 +117,15 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig) {
     }
   });
 
-  debouncedbuildAndNotify(finalConfig, destinationPath, buildCfg, bunServer, { filename: "Initial", eventType: "change" });
+  debouncedbuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, { filename: "Initial", eventType: "change" });
   const watcher = watch(srcWatch, { recursive: true });
   for await (const event of watcher) {
-    debouncedbuildAndNotify(finalConfig, destinationPath, buildCfg, bunServer, event);
+    debouncedbuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, event);
   }
 }
 
 
-const debouncedbuildAndNotify = debounce(async (finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: Bun.BuildConfig, bunServer: Bun.Server, event: FileChangeInfo<string>) => {
+const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: Bun.BuildConfig, bunServer: Bun.Server, event: FileChangeInfo<string>) => {
   if (finalConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
@@ -121,7 +137,7 @@ const debouncedbuildAndNotify = debounce(async (finalConfig: BunDevServerConfig,
   if (finalConfig.writeManifest) {
     writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
   }
-  const tscSuccess = await performTSC(finalConfig);
+  const tscSuccess = await performTSC(finalConfig, importerMeta);
   if (finalConfig.reloadOnChange && tscSuccess) {
     bunServer.publish("message", JSON.stringify({ type: "reload" }));
   }

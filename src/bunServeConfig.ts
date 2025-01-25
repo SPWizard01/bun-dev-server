@@ -12,6 +12,11 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
     watchDelay?: number;
     //enableTypeScriptWatch?: boolean;
     enableTSC?: boolean;
+    /**
+     * The path to the TypeScript configuration file.
+     * Defaults to "./tsconfig.json".
+     */
+    tscConfigPath?: string;
     writeManifest?: boolean;
     manifestName?: string;
     manifestWithHash?: boolean;
