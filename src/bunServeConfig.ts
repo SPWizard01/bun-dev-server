@@ -20,7 +20,7 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
     writeManifest?: boolean;
     manifestName?: string;
     manifestWithHash?: boolean;
-    hotReload?: "plugin" | "footer";
+    hotReload?: "plugin" | "footer" | "none";
     logRequests?: boolean;
     reloadOnChange?: boolean;
     /**

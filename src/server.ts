@@ -27,7 +27,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   if (finalConfig.watchDelay) {
     watchDelay = finalConfig.watchDelay;
   }
-  if(serverConfig.tscConfigPath) {
+  if (serverConfig.tscConfigPath) {
     finalConfig.tscConfigPath = resolve(importMeta.dir, serverConfig.tscConfigPath);
   }
   if (!finalConfig.watchDir) {
@@ -58,7 +58,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
       throw e;
     }
   }
-  const buncfg = { port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath };
+  const buncfg = { port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath, secure: finalConfig.tls !== undefined };
   const buildCfg: Bun.BuildConfig = {
     ...serverConfig.buildConfig,
     outdir: destinationPath
@@ -181,6 +181,7 @@ function withCORSHeaders(response: Response, request?: Request) {
   response.headers.set("Access-Control-Allow-Origin", request?.headers.get("origin") ?? "*");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
   response.headers.set("Access-Control-Allow-Credentials", "true");
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
   return response;
 }
 
