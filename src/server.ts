@@ -129,7 +129,7 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
   if (finalConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
-  const buildEnv= {
+  const buildEnv = {
     importerMeta,
     finalConfig,
     destinationPath,
@@ -138,18 +138,23 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
     event
   }
   finalConfig.beforeBuild?.(buildEnv);
-  const output = await Bun.build(buildCfg);
-  publishOutputLogs(bunServer, output, event);
-  if (finalConfig.createDefaultIndexHTML) {
-    publishIndexHTML(destinationPath, finalConfig.serveOutputHtml!, output, event);
+  try {
+    const output = await Bun.build(buildCfg);
+    publishOutputLogs(bunServer, output, event);
+    if (finalConfig.createDefaultIndexHTML) {
+      publishIndexHTML(destinationPath, finalConfig.serveOutputHtml!, output, event);
+    }
+    if (finalConfig.writeManifest) {
+      writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
+    }
+    finalConfig.afterBuild?.(output, buildEnv);
+    const tscSuccess = await performTSC(finalConfig, importerMeta);
+    if (finalConfig.reloadOnChange && tscSuccess) {
+      bunServer.publish("message", JSON.stringify({ type: "reload" }));
+    }
   }
-  if (finalConfig.writeManifest) {
-    writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
-  }
-  finalConfig.afterBuild?.(output, buildEnv);
-  const tscSuccess = await performTSC(finalConfig, importerMeta);
-  if (finalConfig.reloadOnChange && tscSuccess) {
-    bunServer.publish("message", JSON.stringify({ type: "reload" }));
+  catch (e) {
+    console.error(e);
   }
 }, watchDelay, { immediate: true });
 
