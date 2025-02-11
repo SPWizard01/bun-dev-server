@@ -1,4 +1,14 @@
-import { type BuildConfig, type TLSOptions } from "bun";
+import { type BuildConfig, type TLSOptions, type Server, type BuildOutput } from "bun";
+import type { FileChangeInfo } from "fs/promises";
+
+export interface BuildEnv {
+    importerMeta: ImportMeta;
+    finalConfig: BunDevServerConfig;
+    destinationPath: string;
+    buildCfg: BuildConfig;
+    bunServer: Server;
+    event: FileChangeInfo<any>
+}
 
 export interface BunDevServerConfig extends Partial<BunServeConfig> {
     port: number;
@@ -37,6 +47,8 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      * Defaults to true.
      */
     createDefaultIndexHTML?: boolean;
+    beforeBuild?: (env: BuildEnv) => void;
+    afterBuild?: (outpug: BuildOutput, env: BuildEnv) => void;
 }
 
 export interface BunServeConfig {

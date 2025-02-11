@@ -1,5 +1,5 @@
 import { type BuildOutput, write, pathToFileURL } from "bun";
-export function writeManifest(output: BuildOutput, outdir: string, withHash = false, manifestName = "bunmanifest.txt") {
+export function writeManifest(output: BuildOutput, outdir: string, withHash = false, manifestName = "bun_server_manifest.json") {
     const entryPoints = output.outputs.filter(o => o.kind === "entry-point");
     const epTable: string[] = [];
     for (const ep of entryPoints) {
