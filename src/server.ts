@@ -1,5 +1,5 @@
 import { render } from "ejs";
-import Bun, { $ } from "bun";
+import { $, type BuildConfig, type BuildOutput, type Server } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, access, readFile, constants } from "fs/promises";
@@ -18,7 +18,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     port: 3000,
     websocketPath: DEFAULT_HMR_PATH,
     serveOutputEjs: serveTemplate,
-    serveOutputHtml: indexTemplate,
+    serveIndexHtmlEjs: indexTemplate,
     createDefaultIndexHTML: true,
     tscConfigPath: resolve(importMeta.dir, "./tsconfig.json"),
   }
@@ -59,7 +59,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     }
   }
   const buncfg = { port: finalConfig.port, tls: finalConfig.tls, websocketPath: finalConfig.websocketPath, secure: finalConfig.tls !== undefined };
-  const buildCfg: Bun.BuildConfig = {
+  const buildCfg: BuildConfig = {
     ...serverConfig.buildConfig,
     outdir: destinationPath
   }
@@ -125,7 +125,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
 }
 
 
-const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: Bun.BuildConfig, bunServer: Bun.Server, event: FileChangeInfo<string>) => {
+const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: BuildConfig, bunServer: Server, event: FileChangeInfo<string>) => {
   if (finalConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
@@ -142,7 +142,7 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
     const output = await Bun.build(buildCfg);
     publishOutputLogs(bunServer, output, event);
     if (finalConfig.createDefaultIndexHTML) {
-      publishIndexHTML(destinationPath, finalConfig.serveOutputHtml!, output, event);
+      publishIndexHTML(destinationPath, finalConfig.serveIndexHtmlEjs!, output, event);
     }
     if (finalConfig.writeManifest) {
       writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
@@ -164,7 +164,7 @@ function handleErrorResponse(req: Request, err: unknown) {
   return withCORSHeaders(new Response(msg, { status: 500 }), req);
 }
 
-function publishOutputLogs(bunServer: Bun.Server, output: Bun.BuildOutput, event: FileChangeInfo<string>) {
+function publishOutputLogs(bunServer: Server, output: BuildOutput, event: FileChangeInfo<string>) {
   output.logs.forEach(console.log);
   bunServer.publish("message", JSON.stringify({ type: "message", message: `[Bun HMR] ${event.filename} ${event.eventType}` }));
   const outTable = output.outputs.filter(o => o.kind !== "sourcemap").map(o => {
@@ -180,7 +180,7 @@ function publishOutputLogs(bunServer: Bun.Server, output: Bun.BuildOutput, event
   bunServer.publish("message", JSON.stringify({ type: "output", message: outTable }));
 }
 
-function publishIndexHTML(destinationPath: string, template: string, output: Bun.BuildOutput, _event: FileChangeInfo<string>) {
+function publishIndexHTML(destinationPath: string, template: string, output: BuildOutput, _event: FileChangeInfo<string>) {
   const eps = output.outputs.filter(o => o.kind === "entry-point");
   const hashedImports: string[] = [];
   for (const ep of eps) {

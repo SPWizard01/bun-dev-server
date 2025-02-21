@@ -9,11 +9,14 @@
   "keywords": [
     "bun",
     "devserver",
+    "dev server",
     "dev",
+    "serve",
     "server",
     "hmr",
     "reload",
-    "hot"
+    "hot",
+    "hot reload"
   ],
   "files": [
     "dist"
@@ -21,7 +24,7 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "version": "0.9.2",
+  "version": "0.9.3",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
