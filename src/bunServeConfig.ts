@@ -94,7 +94,7 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      * Whether to create index.html using `serveIndexHtmlEjs` template.
      * @default true.
      */
-    createDefaultIndexHTML?: boolean;
+    createIndexHTML?: boolean;
     /**
      * Event listener to execute before Bun builds
      * @param env Supplied environment for the build

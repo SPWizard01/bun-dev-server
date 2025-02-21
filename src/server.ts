@@ -19,7 +19,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     websocketPath: DEFAULT_HMR_PATH,
     serveOutputEjs: serveTemplate,
     serveIndexHtmlEjs: indexTemplate,
-    createDefaultIndexHTML: true,
+    createIndexHTML: true,
     tscConfigPath: resolve(importMeta.dir, "./tsconfig.json"),
   }
 
@@ -141,7 +141,7 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
   try {
     const output = await Bun.build(buildCfg);
     publishOutputLogs(bunServer, output, event);
-    if (finalConfig.createDefaultIndexHTML) {
+    if (finalConfig.createIndexHTML) {
       publishIndexHTML(destinationPath, finalConfig.serveIndexHtmlEjs!, output, event);
     }
     if (finalConfig.writeManifest) {
