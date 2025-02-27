@@ -122,5 +122,5 @@ export interface BunServeConfig {
     /**
      * Static bun responses
      */
-    static?: Record<`/${string}`, Response>;
+    routes?: Record<`/${string}`, Response>;
 }

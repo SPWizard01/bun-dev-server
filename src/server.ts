@@ -1,5 +1,5 @@
 import { render } from "ejs";
-import { $, type BuildConfig, type BuildOutput, type Server } from "bun";
+import { $, FileSystemRouter, type BuildConfig, type BuildOutput, type Server } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, access, readFile, constants } from "fs/promises";
@@ -80,15 +80,18 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   if (serverConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
+
   console.log("Starting Bun Dev Server on port", finalConfig.port);
   const bunServer = Bun.serve({
     port: finalConfig.port,
     development: true,
+    //@ts-ignore
     tls: finalConfig.tls,
-    static: {
+    routes: {
       "/favicon.ico": withCORSHeaders(new Response("", { status: 404 })),
-      ...finalConfig.static
+      ...finalConfig.routes,
     },
+
     async fetch(req, server) {
       if (req.method === "OPTIONS") {
         finalConfig.logRequests && console.log(`${200} ${req.url} OPTIONS`);
