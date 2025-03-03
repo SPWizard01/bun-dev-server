@@ -21,6 +21,8 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     serveIndexHtmlEjs: indexTemplate,
     createIndexHTML: true,
     tscConfigPath: resolve(importMeta.dir, "./tsconfig.json"),
+    broadcastBuildOutputToConsole: true,
+    broadcastBuildOutputToClient: true,
   }
 
   const finalConfig: BunDevServerConfig = { ...defaultConfig, ...serverConfig };
@@ -143,7 +145,7 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
   finalConfig.beforeBuild?.(buildEnv);
   try {
     const output = await Bun.build(buildCfg);
-    publishOutputLogs(bunServer, output, event);
+    publishOutputLogs(bunServer, output, finalConfig, event);
     if (finalConfig.createIndexHTML) {
       publishIndexHTML(destinationPath, finalConfig.serveIndexHtmlEjs!, output, event);
     }
@@ -151,10 +153,17 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
       writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
     }
     finalConfig.afterBuild?.(output, buildEnv);
-    const tscSuccess = await performTSC(finalConfig, importerMeta);
-    if (finalConfig.reloadOnChange && tscSuccess) {
+    if (finalConfig.reloadOnChange && !finalConfig.waitForTSCSuccessBeforeReload) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }
+    const tscSuccess = await performTSC(finalConfig, importerMeta);
+    if (finalConfig.reloadOnChange && finalConfig.waitForTSCSuccessBeforeReload && !tscSuccess.error) {
+      bunServer.publish("message", JSON.stringify({ type: "reload" }));
+    }
+    if (tscSuccess.error && finalConfig.broadcastTSCErrorToClient) {
+      bunServer.publish("message", JSON.stringify({ type: "tscerror", message: tscSuccess.message }));
+    }
+
   }
   catch (e) {
     console.error(e);
@@ -167,7 +176,7 @@ function handleErrorResponse(req: Request, err: unknown) {
   return withCORSHeaders(new Response(msg, { status: 500 }), req);
 }
 
-function publishOutputLogs(bunServer: Server, output: BuildOutput, event: FileChangeInfo<string>) {
+function publishOutputLogs(bunServer: Server, output: BuildOutput, config: BunDevServerConfig, event: FileChangeInfo<string>) {
   output.logs.forEach(console.log);
   bunServer.publish("message", JSON.stringify({ type: "message", message: `[Bun HMR] ${event.filename} ${event.eventType}` }));
   const outTable = output.outputs.filter(o => o.kind !== "sourcemap").map(o => {
@@ -179,8 +188,12 @@ function publishOutputLogs(bunServer: Server, output: BuildOutput, event: FileCh
       size: convertBytes(o.size)
     };
   });
-  console.table(outTable);
-  bunServer.publish("message", JSON.stringify({ type: "output", message: outTable }));
+  if (config.broadcastBuildOutputToConsole) {
+    console.table(outTable);
+  }
+  if (config.broadcastBuildOutputToClient) {
+    bunServer.publish("message", JSON.stringify({ type: "output", message: outTable }));
+  }
 }
 
 function publishIndexHTML(destinationPath: string, template: string, output: BuildOutput, _event: FileChangeInfo<string>) {

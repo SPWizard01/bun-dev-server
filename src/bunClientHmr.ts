@@ -39,6 +39,9 @@ function hotReload() {
       window.location.reload();
       return;
     }
+    if (parsed?.type === "tscerror") {
+      console.error(parsed.message);
+    }
     if (parsed?.type === "error") {
       console.error(parsed.message);
       let newDiv = window.document.getElementById("bun-hmr-error")

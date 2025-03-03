@@ -35,6 +35,11 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      */
     enableTSC?: boolean;
     /**
+     * Whether to broadcast the TypeScript check error to the client.
+     * @default false
+     */
+    broadcastTSCErrorToClient?: boolean;
+    /**
      * The path to the TypeScript configuration file.
      * @default "./tsconfig.json".
      */
@@ -59,6 +64,21 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      * @default "none"
      */
     hotReload?: "plugin" | "footer" | "none";
+    /**
+     * Whether to wait for the TypeScript check to finish before reloading the page.
+     * @default false
+     */
+    waitForTSCSuccessBeforeReload?: boolean;
+    /**
+     * Whether to broadcast the build output to the browser.
+     * @default true
+     */
+    broadcastBuildOutputToClient?: boolean;
+    /**
+     * Whether to broadcast the build output to the console.
+     * @default true
+     */
+    broadcastBuildOutputToConsole?: boolean;
     /**
      * Whether to reload the page when a file changes.
      * This requires property `hotReload` to be set to `"plugin"` or `"footer"`.
