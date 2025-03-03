@@ -41,6 +41,7 @@ function hotReload() {
     }
     if (parsed?.type === "tscerror") {
       console.error(parsed.message);
+      return;
     }
     if (parsed?.type === "error") {
       console.error(parsed.message);
