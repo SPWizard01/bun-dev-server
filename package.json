@@ -24,7 +24,7 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "version": "0.9.6",
+  "version": "0.9.7",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
@@ -32,10 +32,10 @@
     "build": "bun run ./build.ts"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.4"
+    "@types/bun": "^1.2.5"
   },
   "peerDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
     "@types/ejs": "^3.1.5",

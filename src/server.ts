@@ -1,5 +1,5 @@
 import { render } from "ejs";
-import { $, FileSystemRouter, type BuildConfig, type BuildOutput, type Server } from "bun";
+import { $, type BuildConfig, type BuildOutput, type Server, type ServerWebSocket } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, access, readFile, constants } from "fs/promises";
@@ -87,7 +87,6 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   const bunServer = Bun.serve({
     port: finalConfig.port,
     development: true,
-    //@ts-ignore
     tls: finalConfig.tls,
     routes: {
       "/favicon.ico": withCORSHeaders(new Response("", { status: 404 })),
@@ -97,12 +96,12 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     async fetch(req, server) {
       if (req.method === "OPTIONS") {
         finalConfig.logRequests && console.log(`${200} ${req.url} OPTIONS`);
-        return withCORSHeaders(new Response("", { status: 200 }), req);;
+        return withCORSHeaders(new Response("", { status: 200 }), req);
       }
       if (req.url.toLowerCase().endsWith(finalConfig.websocketPath!)) {
         finalConfig.logRequests && console.log(`${req.url} Socket Upgrade`);
         if (server.upgrade(req)) {
-          return;
+          return withCORSHeaders(new Response("", { status: 200 }), req);
         }
       }
       const url = new URL(req.url);
@@ -113,12 +112,13 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
 
 
     websocket: {
-      open(ws) {
+      open(ws: ServerWebSocket) {
         ws.subscribe("message");
       },
-      message(ws, message) {
+      message(ws: ServerWebSocket, message: string | Buffer) {
       },
-      sendPings: true
+      sendPings: true,
+
     }
   });
 
