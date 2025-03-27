@@ -186,10 +186,14 @@ function publishOutputLogs(bunServer: Server, output: BuildOutput, config: BunDe
   bunServer.publish("message", JSON.stringify({ type: "message", message: `[Bun HMR] ${event.filename} ${event.eventType}` }));
   const outTable = output.outputs.filter(o => o.kind !== "sourcemap").map(o => {
     const a = Bun.pathToFileURL(o.path);
+    const distPath = Bun.pathToFileURL(config.buildConfig.outdir ?? "./dist");
+    const distPathHref = distPath.href;
+    const lastDistIdx = distPathHref.lastIndexOf("/") + 1;
     const fileName = a.href.substring(a.href.lastIndexOf("/") + 1);
+    const fileWithPath = a.href.substring(lastDistIdx);
     return {
       name: fileName,
-      path: o.path,
+      path: fileWithPath,
       size: convertBytes(o.size)
     };
   });
