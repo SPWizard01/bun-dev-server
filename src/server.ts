@@ -55,7 +55,12 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   } catch (e) {
     if ((e as ErrnoException).code === "ENOENT") {
       console.log("Directory not found, creating it...");
-      await $`mkdir ${destinationPath}`;
+      try {
+        await $`mkdir ${destinationPath}`;
+      }
+      catch (e) {
+        console.error("Unable to create directory", e);
+      }
     } else {
       throw e;
     }
@@ -222,7 +227,7 @@ async function cleanDirectory(dst: string) {
     if (stderr.indexOf("no matches found") > -1) {
       console.log("Directory is empty");
     } else {
-      throw stderr;
+      console.warn("Unable to clean directory", stderr.toString("utf8"));
     }
   }
 }
