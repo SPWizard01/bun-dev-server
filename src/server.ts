@@ -1,5 +1,5 @@
 import { render } from "ejs";
-import { $, type BuildConfig, type BuildOutput, type Server, type ServerWebSocket } from "bun";
+import { $, build, type BuildConfig, type BuildOutput, type Server, type ServerWebSocket } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
 import { watch, readdir, access, readFile, constants } from "fs/promises";
@@ -10,8 +10,7 @@ import { type BunDevServerConfig } from "./bunServeConfig";
 import { writeManifest } from "./bunManifest";
 import { performTSC } from "./tsChecker";
 import { DEFAULT_HMR_PATH } from "./bunClientHmr";
-import debounce from "debounce"
-let watchDelay = 1000;
+import pqueue from "p-queue"
 
 export async function startBunDevServer(serverConfig: BunDevServerConfig, importMeta: ImportMeta) {
   const defaultConfig: Partial<BunDevServerConfig> = {
@@ -22,13 +21,10 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     createIndexHTML: true,
     tscConfigPath: resolve(importMeta.dir, "./tsconfig.json"),
     broadcastBuildOutputToConsole: true,
-    broadcastBuildOutputToClient: true,
+    broadcastBuildOutputToClient: true
   }
 
   const finalConfig: BunDevServerConfig = { ...defaultConfig, ...serverConfig };
-  if (finalConfig.watchDelay) {
-    watchDelay = finalConfig.watchDelay;
-  }
   if (serverConfig.tscConfigPath) {
     finalConfig.tscConfigPath = resolve(importMeta.dir, serverConfig.tscConfigPath);
   }
@@ -126,16 +122,39 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
 
     }
   });
-
-  debouncedbuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, { filename: "Initial", eventType: "change" });
+  const queue = getThrottledBuildAndNotify(finalConfig);
+  await queue.add(async () => {
+    await cleanBuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, { filename: "Initial", eventType: "change" });
+  })
+  // await debouncedbuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, { filename: "Initial", eventType: "change" });
   const watcher = watch(srcWatch, { recursive: true });
+
   for await (const event of watcher) {
-    debouncedbuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, event);
+    try {
+      if(queue.size > 0) {
+        queue.clear();
+      }
+      queue.add(async () => {
+        await cleanBuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, event);
+      })
+    }
+    catch (e) {
+      console.error("Error while processing file change", e);
+    }
   }
 }
 
+function getThrottledBuildAndNotify(serverConfig: BunDevServerConfig) {
+  const anotherThrottle = new pqueue({
+    concurrency: 1,
+    intervalCap: 1,
+    interval: serverConfig.watchDelay ?? 1000,
+    carryoverConcurrencyCount: true,
+  });
+  return anotherThrottle;
+}
 
-const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: BuildConfig, bunServer: Server, event: FileChangeInfo<string>) => {
+async function cleanBuildAndNotify(importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: BuildConfig, bunServer: Server, event: FileChangeInfo<string>) {
   if (finalConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
@@ -146,10 +165,10 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
     buildCfg,
     bunServer,
     event
-  }
+  };
   finalConfig.beforeBuild?.(buildEnv);
   try {
-    const output = await Bun.build(buildCfg);
+    const output = await build(buildCfg);
     publishOutputLogs(bunServer, output, finalConfig, event);
     if (finalConfig.createIndexHTML) {
       publishIndexHTML(destinationPath, finalConfig.serveIndexHtmlEjs!, output, event);
@@ -173,7 +192,8 @@ const debouncedbuildAndNotify = debounce(async (importerMeta: ImportMeta, finalC
   catch (e) {
     console.error(e);
   }
-}, watchDelay, { immediate: true });
+};
+
 
 function handleErrorResponse(req: Request, err: unknown) {
   const msg = `Error while processing request ${req.url}`;
