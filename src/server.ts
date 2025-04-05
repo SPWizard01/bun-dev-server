@@ -130,8 +130,11 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   const watcher = watch(srcWatch, { recursive: true });
 
   for await (const event of watcher) {
+    if (queue.pending > 0) {
+      continue;
+    }
     try {
-      if(queue.size > 0) {
+      if (queue.size > 0) {
         queue.clear();
       }
       queue.add(async () => {

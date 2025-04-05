@@ -24,7 +24,7 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "version": "0.9.83",
+  "version": "0.9.84",
   "module": "index.ts",
   "type": "module",
   "license": "MIT",
