@@ -119,13 +119,13 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      * Event listener to execute before Bun builds
      * @param env Supplied environment for the build
      */
-    beforeBuild?: (env: BuildEnv) => void;
+    beforeBuild?: (env: BuildEnv) => Promise<void> | void;
     /**
     * Event listener to execute after Bun builds
     * @param output The output of the build
     * @param env Supplied environment for the build
     */
-    afterBuild?: (output: BuildOutput, env: BuildEnv) => void;
+    afterBuild?: (output: BuildOutput, env: BuildEnv) => Promise<void> | void;
 }
 
 export interface BunServeConfig {

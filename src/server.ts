@@ -169,7 +169,7 @@ async function cleanBuildAndNotify(importerMeta: ImportMeta, finalConfig: BunDev
     bunServer,
     event
   };
-  finalConfig.beforeBuild?.(buildEnv);
+  await finalConfig.beforeBuild?.(buildEnv);
   try {
     const output = await build(buildCfg);
     publishOutputLogs(bunServer, output, finalConfig, event);
@@ -179,7 +179,7 @@ async function cleanBuildAndNotify(importerMeta: ImportMeta, finalConfig: BunDev
     if (finalConfig.writeManifest) {
       writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
     }
-    finalConfig.afterBuild?.(output, buildEnv);
+    await finalConfig.afterBuild?.(output, buildEnv);
     if (finalConfig.reloadOnChange && !finalConfig.waitForTSCSuccessBeforeReload) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }
