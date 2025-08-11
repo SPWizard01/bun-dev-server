@@ -4,4 +4,4 @@ await $`rm -rf dist`;
 
 await build({ entrypoints: ["./src/index.ts"], outdir: "./dist", target: "bun", minify: false, splitting: false });
 
-await $`tsc`
+await $`tsc -p tsconfig.json`
