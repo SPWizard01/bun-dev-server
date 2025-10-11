@@ -2,6 +2,10 @@ import { render } from "ejs";
 import { $, build, type BuildConfig, type BuildOutput, type Server, type ServerWebSocket } from "bun";
 import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
 import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
+import listingStylePath from "./static/serveOutputStyles.css";
+import fileSvgPath from "./static/file.svg";
+import folderSvgPath from "./static/folder.svg";
+import parentSvgPath from "./static/parent.svg";
 import { watch, readdir, access, readFile, constants } from "fs/promises";
 import { type FileChangeInfo } from "fs/promises";
 import { resolve } from "path"
@@ -11,6 +15,13 @@ import { writeManifest } from "./bunManifest";
 import { performTSC } from "./tsChecker";
 import { DEFAULT_HMR_PATH } from "./bunClientHmr";
 import pqueue from "p-queue"
+
+
+const listingStyleFile = Bun.file(resolve(import.meta.dir, listingStylePath));
+const fileSvg = Bun.file(resolve(import.meta.dir, fileSvgPath));
+const folderSvg = Bun.file(resolve(import.meta.dir, folderSvgPath));
+const parentSvg = Bun.file(resolve(import.meta.dir, parentSvgPath));
+
 
 export async function startBunDevServer(serverConfig: BunDevServerConfig, importMeta: ImportMeta) {
   const defaultConfig: Partial<BunDevServerConfig> = {
@@ -92,6 +103,10 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
     routes: {
       "/favicon.ico": withCORSHeaders(new Response("", { status: 404 })),
       ...finalConfig.routes,
+      "/__bun_dev_server__/serveOutputStyles.css": listingStyleFile,
+      "/__bun_dev_server__/file.svg": fileSvg,
+      "/__bun_dev_server__/folder.svg": folderSvg,
+      "/__bun_dev_server__/parent.svg": parentSvg,
     },
 
     async fetch(req, server) {
@@ -277,7 +292,12 @@ function convertBytes(bytes: number) {
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
 }
 
-async function handlePathRequest(requestPath: string, req: Request, finalConfig: BunDevServerConfig, destinationPath: string) {
+async function handlePathRequest(
+  requestPath: string,
+  req: Request,
+  finalConfig: BunDevServerConfig,
+  destinationPath: string
+) {
   let fsPath = destinationPath + requestPath;
   const objThere = await checkObjectExists(fsPath, req);
   let isDirectory = false;
@@ -338,7 +358,12 @@ async function handlePathRequest(requestPath: string, req: Request, finalConfig:
           name: entry.name,
         };
       });
-    const rnd = render(finalConfig.serveOutputEjs!, { dirs, files });
+    const templatePath = requestPath === "/" ? "" : requestPath;
+    const rnd = render(finalConfig.serveOutputEjs!, {
+      dirs,
+      files,
+      requestPath: templatePath,
+    });
     finalConfig.logRequests && console.log(`${200} ${req.url}`);
     return withCORSHeaders(new Response(rnd, { headers: { "Content-Type": "text/html" } }), req);;
   } catch (err) {

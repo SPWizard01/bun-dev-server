@@ -4,13 +4,71 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Directory Listing</title>
+    <link rel="stylesheet" href="/__bun_dev_server__/serveOutputStyles.css" />
   </head>
 
   <body>
-    <a href="../">..</a>
-    <% dirs.forEach(element => { %> <br /><a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
-    <% files.forEach(element => { %> <br /><a href=".<%= element.requestPath %>/<%= element.name %>"><%= element.name %></a> <% }) %>
+  <% const firstEntry = dirs[0] ?? files[0]; %>
+  <% const resolvedPath = (typeof requestPath === "string" && requestPath.length > 0) ? requestPath : (firstEntry?.requestPath ?? ""); %>
+  <% const currentPath = resolvedPath.replace(/\\/g, "/"); %>
+  <% const pathSegments = currentPath.split("/").filter(Boolean); %>
+  <% const parentPath = pathSegments.slice(0, -1).join("/"); %>
+  <% const parentHref = parentPath.length === 0 ? "/" : `/${parentPath}`; %>
+    <div class="wrapper">
+      <header>
+        <h1>Directory Listing</h1>
+        <div class="breadcrumbs">
+          <% let accrued = ""; %>
+          <a class="back-link" href="/" title="Root directory">
+            root
+          </a>
+          <% pathSegments.forEach((segment, idx) => { %>
+            <% accrued += (accrued.length ? "/" : "") + segment; %>
+            <span>/</span>
+            <a href="/<%= accrued %>"><%= segment %></a>
+          <% }); %>
+        </div>
+      </header>
+
+      <section class="listing">
+        <% if (pathSegments.length > 0) { %>
+          <a class="item" href="<%= parentHref %>">
+            <img class="icon" src="/__bun_dev_server__/parent.svg" alt="" aria-hidden="true" />
+            <span class="text">
+              <span class="name">..</span>
+              <span class="meta">parent directory</span>
+            </span>
+          </a>
+        <% } %>
+
+        <% if (dirs.length === 0 && files.length === 0) { %>
+          <p class="empty">This folder is empty.</p>
+        <% } %>
+
+        <% dirs.forEach((element) => { %>
+          <% const dirHref = element.requestPath === "" ? `/${element.name}` : `${element.requestPath}/${element.name}`; %>
+          <a class="item" href="<%= dirHref %>">
+            <img class="icon" src="/__bun_dev_server__/folder.svg" alt="" aria-hidden="true" />
+            <span class="text">
+              <span class="name"><%= element.name %></span>
+              <span class="meta">directory</span>
+            </span>
+          </a>
+        <% }); %>
+
+        <% files.forEach((element) => { %>
+          <% const fileHref = element.requestPath === "" ? `/${element.name}` : `${element.requestPath}/${element.name}`; %>
+          <a class="item" href="<%= fileHref %>">
+            <img class="icon" src="/__bun_dev_server__/file.svg" alt="" aria-hidden="true" />
+            <span class="text">
+              <span class="name"><%= element.name %></span>
+              <span class="meta">file</span>
+            </span>
+          </a>
+        <% }); %>
+      </section>
+    </div>
   </body>
 
 </html>
