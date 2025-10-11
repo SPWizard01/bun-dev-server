@@ -6,7 +6,7 @@ export interface BuildEnv {
     finalConfig: BunDevServerConfig;
     destinationPath: string;
     buildCfg: BuildConfig;
-    bunServer: Server;
+    bunServer: Server<any>;
     event: FileChangeInfo<any>
 }
 

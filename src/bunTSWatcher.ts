@@ -1,5 +1,5 @@
 import { $, type Server, type Subprocess } from "bun";
-export async function startTSWatcher(server: Server, watchDir: URL) {
+export async function startTSWatcher(server: Server<any>, watchDir: URL) {
     let dstcwd = process.cwd();
     if (watchDir) {
         dstcwd = process.platform === "win32" ? watchDir.pathname.substring(1) : watchDir.pathname;

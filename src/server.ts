@@ -157,7 +157,7 @@ function getThrottledBuildAndNotify(serverConfig: BunDevServerConfig) {
   return anotherThrottle;
 }
 
-async function cleanBuildAndNotify(importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: BuildConfig, bunServer: Server, event: FileChangeInfo<string>) {
+async function cleanBuildAndNotify(importerMeta: ImportMeta, finalConfig: BunDevServerConfig, destinationPath: string, buildCfg: BuildConfig, bunServer: Server<any>, event: FileChangeInfo<string>) {
   if (finalConfig.cleanServePath) {
     await cleanDirectory(destinationPath);
   }
@@ -204,7 +204,7 @@ function handleErrorResponse(req: Request, err: unknown) {
   return withCORSHeaders(new Response(msg, { status: 500 }), req);
 }
 
-function publishOutputLogs(bunServer: Server, output: BuildOutput, config: BunDevServerConfig, event: FileChangeInfo<string>) {
+function publishOutputLogs(bunServer: Server<any>, output: BuildOutput, config: BunDevServerConfig, event: FileChangeInfo<string>) {
   output.logs.forEach(console.log);
   bunServer.publish("message", JSON.stringify({ type: "message", message: `[Bun HMR] ${event.filename} ${event.eventType}` }));
   const outTable = output.outputs.filter(o => o.kind !== "sourcemap").map(o => {
