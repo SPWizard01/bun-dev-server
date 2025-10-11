@@ -41,9 +41,6 @@ export async function cleanBuildAndNotify(
   bunServer: Server<any>,
   event: FileChangeInfo<string>
 ): Promise<void> {
-  if (finalConfig.cleanServePath) {
-    await cleanDirectory(destinationPath);
-  }
   
   const buildEnv = {
     importerMeta,
