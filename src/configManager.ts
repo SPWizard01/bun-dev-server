@@ -4,8 +4,8 @@
 import { $, type BuildConfig } from "bun";
 import { readdir } from "fs/promises";
 import { resolve } from "path";
-import serveTemplate from "./serveOutputTemplate.ejs" with { type: "text" };
-import indexTemplate from "./indexHTMLTemplate.ejs" with { type: "text" };
+import serveTemplatePath from "./templates/output.ejs" //with { type: "text" };
+import indexTemplatePath from "./templates/index.ejs" //with { type: "text" };
 import { bunHotReloadPlugin, getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig, type BuildEnv } from "./bunServeConfig";
 import { DEFAULT_HMR_PATH } from "./bunClientHmr";
@@ -17,6 +17,9 @@ export interface PreparedConfig {
     srcWatch: string;
     buildCfg: BuildConfig;
 }
+
+const serveTemplate = await Bun.file(Bun.fileURLToPath(import.meta.resolve(serveTemplatePath))).text();
+const indexTemplate = await Bun.file(Bun.fileURLToPath(import.meta.resolve(indexTemplatePath))).text();
 
 /**
  * Prepare and validate the server configuration

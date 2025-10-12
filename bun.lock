@@ -4,16 +4,16 @@
     "": {
       "name": "bun-dev-server",
       "dependencies": {
-        "@types/ejs": "latest",
-        "ejs": "latest",
-        "p-queue": "latest",
-        "picocolors": "latest",
+        "@types/ejs": "^3.1.5",
+        "ejs": "^3.1.10",
+        "p-queue": "^9.0.0",
+        "picocolors": "^1.1.1",
       },
       "devDependencies": {
-        "@types/bun": "latest",
+        "@types/bun": "^1.3.0",
       },
       "peerDependencies": {
-        "typescript": "latest",
+        "typescript": "^5.9.3",
       },
     },
   },

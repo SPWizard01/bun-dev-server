@@ -22,7 +22,7 @@ export function bunHotReloadPlugin(config: BunHMROptions) {
                 }
                 entryPoints.push(entryPath);
             })
-            build.onLoad({ filter: /\.m?tsx?/ }, async (args) => {
+            build.onLoad({ filter: /\.m?(t|j)sx?/ }, async (args) => {
                 const contents = await readFile(args.path, { encoding: "utf-8" });
                 const isTSx = /\.m?tsx$/.test(args.path);
                 const isJSx = /\.m?jsx$/.test(args.path);

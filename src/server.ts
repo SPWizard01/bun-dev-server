@@ -1,4 +1,5 @@
 import { type ServerWebSocket } from "bun";
+import pc from "picocolors";
 import { type BunDevServerConfig } from "./bunServeConfig";
 import { handlePathRequest } from "./httpHandler";
 import { staticAssetRoutes } from "./staticAssets";
@@ -11,10 +12,17 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
   // Prepare and validate configuration
   const { finalConfig, destinationPath, srcWatch, buildCfg } = await prepareConfiguration(serverConfig, importMeta);
 
-  console.log("🚀 Starting Bun Dev Server on port", finalConfig.port);
+  const protocol = finalConfig.tls ? 'https' : 'http';
+  const serverUrl = `${protocol}://localhost:${finalConfig.port}`;
+  console.log(pc.bold(pc.green("🚀 Server running at")) + " " + pc.cyan(pc.underline(serverUrl)));
+  
   const bunServer = Bun.serve({
     port: finalConfig.port,
-    development: true,
+    development: {
+      console: true,
+      hmr: true,
+      chromeDevToolsAutomaticWorkspaceFolders: true,
+    },
     tls: finalConfig.tls,
     routes: {
       "/favicon.ico": withCORSHeaders(new Response("", { status: 404 })),

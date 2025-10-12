@@ -5,8 +5,9 @@ import { render } from "ejs";
 import { build, type BuildConfig, type BuildOutput, type Server } from "bun";
 import { type FileChangeInfo } from "fs/promises";
 import pqueue from "p-queue";
+import pc from "picocolors";
 import { type BunDevServerConfig } from "./bunServeConfig";
-import { cleanDirectory, convertBytes } from "./utils/filesystem";
+import { convertBytes } from "./utils/filesystem";
 import { performTSC } from "./tsChecker";
 import { writeManifest } from "./bunManifest";
 
@@ -119,7 +120,7 @@ function publishOutputLogs(
   });
   
   if (config.broadcastBuildOutputToConsole) {
-    console.table(outTable);
+    printPrettyBuildOutput(outTable);
   }
   
   if (config.broadcastBuildOutputToClient) {
@@ -142,13 +143,47 @@ function publishIndexHTML(
 ): void {
   const eps = output.outputs.filter(o => o.kind === "entry-point");
   const hashedImports: string[] = [];
+  const cssFiles: string[] = [];
+  
+  const basePathUrl = Bun.pathToFileURL(destinationPath);
   
   for (const ep of eps) {
-    const basePathUrl = Bun.pathToFileURL(destinationPath);
     const epUrl = Bun.pathToFileURL(ep.path);
     const hashedImport = `${epUrl.href.replace(basePathUrl.href, "")}?${ep.hash}`;
     hashedImports.push(hashedImport);
   }
   
-  Bun.write(destinationPath + "/index.html", render(template, { hashedImports }));
+  // Collect CSS files from build output
+  const cssOutputs = output.outputs.filter(o => o.path.endsWith(".css"));
+  for (const cssFile of cssOutputs) {
+    const cssUrl = Bun.pathToFileURL(cssFile.path);
+    const hashedCss = `${cssUrl.href.replace(basePathUrl.href, "")}?${cssFile.hash}`;
+    cssFiles.push(hashedCss);
+  }
+  
+  Bun.write(destinationPath + "/index.html", render(template, { hashedImports, cssFiles }));
+}
+
+/**
+ * Print a pretty formatted build output to console
+ * @param outTable - Array of output file information
+ */
+function printPrettyBuildOutput(outTable: Array<{ name: string; path: string; size: string }>): void {
+  if (outTable.length === 0) return;
+  
+  const totalFiles = outTable.length;
+  const fileWord = totalFiles === 1 ? 'file' : 'files';
+  
+  // Header with emoji and count
+  console.log("\n" + pc.bold(pc.cyan(`📦 Build Output (${totalFiles} ${fileWord})`)));
+  
+  // List each file with checkmark
+  outTable.forEach((row) => {
+    const checkmark = pc.green("  ✓");
+    const filePath = pc.white(row.path);
+    const size = pc.dim(`(${row.size})`);
+    console.log(`${checkmark} ${filePath} ${size}`);
+  });
+  
+  console.log(""); // Empty line for spacing
 }
