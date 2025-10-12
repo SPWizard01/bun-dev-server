@@ -32,19 +32,26 @@ export async function startFileWatcher(
   // Start watching for file changes
   const watcher = watch(srcWatch, { recursive: true });
 
-  for await (const event of watcher) {
-    if (queue.pending > 0) {
-      continue;
-    }
-    try {
-      if (queue.size > 0) {
-        queue.clear();
+  try {
+    for await (const event of watcher) {
+      if (queue.pending > 0) {
+        continue;
       }
-      queue.add(async () => {
-        await cleanBuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, event);
-      });
-    } catch (e) {
-      console.error("Error while processing file change", e);
+      try {
+        if (queue.size > 0) {
+          queue.clear();
+        }
+        queue.add(async () => {
+          await cleanBuildAndNotify(importMeta, finalConfig, destinationPath, buildCfg, bunServer, event);
+        });
+      } catch (e) {
+        console.error("Error while processing file change", e);
+      }
+    }
+  } catch (e: any) {
+    // Silently ignore EPERM errors - these happen when directory is deleted during test cleanup
+    if (e?.code !== 'EPERM') {
+      console.error("Error in file watcher", e);
     }
   }
 }

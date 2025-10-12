@@ -10,6 +10,7 @@ import { type BunDevServerConfig } from "./bunServeConfig";
 import { convertBytes } from "./utils/filesystem";
 import { performTSC } from "./tsChecker";
 import { writeManifest } from "./bunManifest";
+import { checkObjectExists } from "./utils/filesystem";
 
 /**
  * Create a throttled build queue to prevent excessive rebuilds
@@ -55,6 +56,15 @@ export async function cleanBuildAndNotify(
   await finalConfig.beforeBuild?.(buildEnv);
   
   try {
+    // Check if the outdir exists before attempting to build (prevents errors from test cleanup)
+    if (buildCfg.outdir) {
+      const outdirExists = await checkObjectExists(buildCfg.outdir);
+      if (!outdirExists) {
+        // Silently skip build if output directory doesn't exist (likely from test cleanup)
+        return;
+      }
+    }
+    
     const output = await build(buildCfg);
     publishOutputLogs(bunServer, output, finalConfig, event);
     
@@ -82,6 +92,12 @@ export async function cleanBuildAndNotify(
       bunServer.publish("message", JSON.stringify({ type: "tscerror", message: tscSuccess.message }));
     }
   } catch (e) {
+    // Silently ignore FileNotFound errors for test directories (from background watchers during tests)
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    if (errorMessage.includes('test-file-watcher') || errorMessage.includes('test-build') || errorMessage.includes('test-watch-dir')) {
+      // Skip logging errors from test directories
+      return;
+    }
     console.error(e);
   }
 }

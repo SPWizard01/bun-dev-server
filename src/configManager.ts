@@ -79,7 +79,7 @@ export async function prepareConfiguration(
 
     const buildCfg: BuildConfig = {
         ...serverConfig.buildConfig,
-        outdir: destinationPath
+        outdir: destinationPath,
     };
 
     // Add hot reload configuration

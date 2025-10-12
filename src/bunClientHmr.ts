@@ -1,8 +1,7 @@
 import type { BunHMROptions } from "./bunHmrPlugin";
 
-
-
-function hotReload() {
+// Export the hotReload function for testing
+export function hotReload() {
   if (!(window as any).BUN_DEV_SERVER) {
     (window as any).BUN_DEV_SERVER = [];
   }

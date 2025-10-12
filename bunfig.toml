@@ -1,0 +1,3 @@
+[test]
+# Exclude test files from coverage
+coverageSkipTestFiles = true
