@@ -1,20 +1,20 @@
 /**
  * Configuration management and validation
  */
-import { $, type BuildConfig } from "bun";
-import { readdir } from "fs/promises";
+import { type BuildConfig } from "bun";
 import { resolve } from "path";
 import serveTemplatePath from "./templates/output.ejs" //with { type: "text" };
 import indexTemplatePath from "./templates/index.ejs" //with { type: "text" };
 import { bunHotReloadPlugin, getBunHMRFooter } from "./bunHmrPlugin";
 import { type BunDevServerConfig, type BuildEnv } from "./bunServeConfig";
 import { DEFAULT_HMR_PATH } from "./bunClientHmr";
-import { cleanDirectory } from "./utils/filesystem";
+import { cleanDirectory, ensureDestinationDirectory } from "./utils/filesystem";
 
 export interface PreparedConfig {
     finalConfig: BunDevServerConfig;
-    destinationPath: string;
-    srcWatch: string;
+    serveDestination: string;
+    buildDestination: string;
+    watchDestination: string;
     buildCfg: BuildConfig;
 }
 
@@ -53,21 +53,23 @@ export async function prepareConfiguration(
         throw new Error("watchDir must be set");
     }
 
+
     // Resolve paths
-    const servePart = finalConfig.buildConfig.outdir ?? finalConfig.servePath ?? "./dist";
+    const defaultBuildDir = finalConfig.buildConfig.outdir ?? "./dist";
+    const servePart = finalConfig.servePath ?? defaultBuildDir;
     const serveDestination = resolve(importMeta.dir, servePart);
     const watchDestination = resolve(importMeta.dir, finalConfig.watchDir);
+    const buildDestination = resolve(importMeta.dir, defaultBuildDir);
 
     // Resolve entry points
     const allEntries = serverConfig.buildConfig.entrypoints.splice(0, serverConfig.buildConfig.entrypoints.length);
     const resolvedEntries = allEntries.map(e => resolve(importMeta.dir, e));
     serverConfig.buildConfig.entrypoints = resolvedEntries;
 
-    const destinationPath = serveDestination;
-    const srcWatch = watchDestination;
 
     // Ensure destination directory exists
-    await ensureDestinationDirectory(destinationPath);
+    await ensureDestinationDirectory(buildDestination);
+    await ensureDestinationDirectory(serveDestination);
 
     // Prepare build configuration
     const buncfg = {
@@ -79,7 +81,7 @@ export async function prepareConfiguration(
 
     const buildCfg: BuildConfig = {
         ...serverConfig.buildConfig,
-        outdir: destinationPath,
+        outdir: buildDestination,
     };
 
     // Add hot reload configuration
@@ -99,37 +101,24 @@ export async function prepareConfiguration(
 
     const userBeforeBuild = finalConfig.beforeBuild;
     finalConfig.beforeBuild = async (env: BuildEnv) => {
-        if (serverConfig.cleanServePath) {
-            await cleanDirectory(env.destinationPath);
+        const buildDirOverOfServe = serveDestination.indexOf(buildDestination) !== -1;
+        const serveDirOverOfBuild = buildDestination.indexOf(serveDestination) !== -1;
+        if (serverConfig.cleanBuildPath && buildDirOverOfServe) {
+            await cleanDirectory(env.buildDestination);
+        };
+        if (serverConfig.cleanServePath && serveDirOverOfBuild) {
+            await cleanDirectory(env.serveDestination);
         };
         await userBeforeBuild?.(env);
     }
 
     return {
         finalConfig,
-        destinationPath,
-        srcWatch,
+        serveDestination,
+        buildDestination,
+        watchDestination,
         buildCfg
     };
 }
 
-/**
- * Ensure the destination directory exists, create if it doesn't
- * @param destinationPath - The absolute path to the destination directory
- */
-async function ensureDestinationDirectory(destinationPath: string): Promise<void> {
-    try {
-        await readdir(destinationPath);
-    } catch (e) {
-        if ((e as ErrnoException).code === "ENOENT") {
-            console.log("Directory not found, creating it...");
-            try {
-                await $`mkdir ${destinationPath}`;
-            } catch (e) {
-                console.error("Unable to create directory", e);
-            }
-        } else {
-            throw e;
-        }
-    }
-}
+

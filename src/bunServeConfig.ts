@@ -4,7 +4,9 @@ import type { FileChangeInfo } from "fs/promises";
 export interface BuildEnv {
     importerMeta: ImportMeta;
     finalConfig: BunDevServerConfig;
-    destinationPath: string;
+    buildDestination: string;
+    serveDestination: string;
+    watchDestination: string;
     buildCfg: BuildConfig;
     bunServer: Server<any>;
     event: FileChangeInfo<any>
@@ -100,6 +102,13 @@ export interface BunDevServerConfig extends Partial<BunServeConfig> {
      * Whether to clean the `servePath` before building a new batch.
      */
     cleanServePath?: boolean;
+    /**
+     * Whether to clean the `outdir` before building a new batch.
+     * 
+     * If `outdir` is under `servePath` and `cleanServePath` is true, 
+     * then `outdir` will be cleaned regardless.
+     */
+    cleanBuildPath?: boolean;
     /**
      * The EJS template used for the output of the `/` path on the server.
      * When supplying your own template, the properties that are provided during rendering are `files` and `dirs` both are arrays.

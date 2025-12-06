@@ -5,7 +5,7 @@ export function writeManifest(output: BuildOutput, outdir: string, withHash = fa
     for (const ep of entryPoints) {
         const basePathUrl = pathToFileURL(outdir);
         const epUrl = pathToFileURL(ep.path);
-        const relativePath = epUrl.href.replace(`${basePathUrl.href}/`, "");
+        const relativePath = epUrl.href.replace(`${basePathUrl.href}/`, "./");
         // const nameNoJs = relativePath.replace(".js", "");
         const hashedImport = `${relativePath}${withHash ? `?${ep.hash}` : ``}`;
         epTable.push(hashedImport);

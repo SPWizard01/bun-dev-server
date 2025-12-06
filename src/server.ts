@@ -6,21 +6,23 @@ import { staticAssetRoutes } from "./staticAssets";
 import { withCORSHeaders } from "./utils/cors";
 import { startFileWatcher } from "./fileWatcher";
 import { prepareConfiguration } from "./configManager";
+import { ensureDestinationDirectory } from "./utils/filesystem";
 
 
 export async function startBunDevServer(serverConfig: BunDevServerConfig, importMeta: ImportMeta) {
   // Prepare and validate configuration
-  const { finalConfig, destinationPath, srcWatch, buildCfg } = await prepareConfiguration(serverConfig, importMeta);
+  const { finalConfig, buildCfg, ...paths } = await prepareConfiguration(serverConfig, importMeta);
 
   const protocol = finalConfig.tls ? 'https' : 'http';
   const serverUrl = `${protocol}://localhost:${finalConfig.port}`;
   // Only log server startup if not in test mode (check if NODE_ENV or if bun test is running)
-  const isTestMode = process.env.NODE_ENV === 'test' || process.env.BUN_TEST === 'true' || 
-                     (typeof Bun !== 'undefined' && Bun.main.includes('test'));
+  const isTestMode = process.env.NODE_ENV === 'test' || process.env.BUN_TEST === 'true' ||
+    (typeof Bun !== 'undefined' && Bun.main.includes('test'));
   if (!isTestMode) {
     console.log(pc.bold(pc.green("🚀 Server running at")) + " " + pc.cyan(pc.underline(serverUrl)));
+    console.log(pc.bold(pc.green("📁 Serving files from")) + " " + pc.cyan(pc.underline(paths.serveDestination)));
   }
-  
+  await ensureDestinationDirectory(paths.serveDestination);
   let bunServer;
   try {
     bunServer = Bun.serve({
@@ -51,7 +53,7 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
         const url = new URL(req.url);
         let requestPath = url.pathname;
 
-        return handlePathRequest(requestPath, req, finalConfig, destinationPath);
+        return handlePathRequest(requestPath, req, finalConfig, paths.serveDestination);
       },
 
 
@@ -77,6 +79,6 @@ export async function startBunDevServer(serverConfig: BunDevServerConfig, import
 
   // Start file watcher with initial build (only if server started successfully)
   if (bunServer) {
-    await startFileWatcher(srcWatch, importMeta, finalConfig, destinationPath, buildCfg, bunServer);
+    await startFileWatcher(paths.watchDestination, importMeta, finalConfig, paths, buildCfg, bunServer);
   }
 }

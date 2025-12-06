@@ -3,6 +3,20 @@
  */
 import { $ } from "bun";
 import { access, constants } from "fs/promises";
+import { mkdir } from "fs/promises"
+
+/**
+ * Ensure the destination directory exists, create if it doesn't
+ * @param destinationPath - The absolute path to the destination directory
+ */
+export async function ensureDestinationDirectory(destinationPath: string): Promise<void> {
+  try {
+    await mkdir(destinationPath, { recursive: true });
+  } catch (e) {
+    console.error("Unable to create directory", e);
+    throw e;
+  }
+}
 
 /**
  * Clean a directory by removing all its contents

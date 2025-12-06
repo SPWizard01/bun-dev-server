@@ -7,7 +7,7 @@ import { type FileChangeInfo } from "fs/promises";
 import pqueue from "p-queue";
 import pc from "picocolors";
 import { type BunDevServerConfig } from "./bunServeConfig";
-import { convertBytes } from "./utils/filesystem";
+import { convertBytes, ensureDestinationDirectory } from "./utils/filesystem";
 import { performTSC } from "./tsChecker";
 import { writeManifest } from "./bunManifest";
 import { checkObjectExists } from "./utils/filesystem";
@@ -26,11 +26,17 @@ export function getThrottledBuildQueue(serverConfig: BunDevServerConfig): pqueue
   });
 }
 
+export interface BuildEnvPaths {
+  buildDestination: string;
+  serveDestination: string;
+  watchDestination: string;
+}
+
 /**
  * Build and notify clients about the build result
  * @param importerMeta - The ImportMeta object from the caller
  * @param finalConfig - The final server configuration
- * @param destinationPath - The absolute path to the output directory
+ * @param buildDestination - The absolute path to the output directory
  * @param buildCfg - The build configuration
  * @param bunServer - The Bun server instance
  * @param event - The file change event that triggered the build
@@ -38,56 +44,50 @@ export function getThrottledBuildQueue(serverConfig: BunDevServerConfig): pqueue
 export async function cleanBuildAndNotify(
   importerMeta: ImportMeta,
   finalConfig: BunDevServerConfig,
-  destinationPath: string,
+  paths: BuildEnvPaths,
   buildCfg: BuildConfig,
   bunServer: Server<any>,
   event: FileChangeInfo<string>
 ): Promise<void> {
-  
+
   const buildEnv = {
     importerMeta,
     finalConfig,
-    destinationPath,
+    ...paths,
     buildCfg,
     bunServer,
     event
   };
-  
+
   await finalConfig.beforeBuild?.(buildEnv);
-  
+
   try {
     // Check if the outdir exists before attempting to build (prevents errors from test cleanup)
-    if (buildCfg.outdir) {
-      const outdirExists = await checkObjectExists(buildCfg.outdir);
-      if (!outdirExists) {
-        // Silently skip build if output directory doesn't exist (likely from test cleanup)
-        return;
-      }
-    }
-    
+    await ensureDestinationDirectory(paths.buildDestination);
+
     const output = await build(buildCfg);
     publishOutputLogs(bunServer, output, finalConfig, event);
-    
+
     if (finalConfig.createIndexHTML) {
-      publishIndexHTML(destinationPath, finalConfig.serveIndexHtmlEjs!, output, event);
+      publishIndexHTML(paths, finalConfig.serveIndexHtmlEjs!, output, event);
     }
-    
+
     if (finalConfig.writeManifest) {
-      writeManifest(output, destinationPath, finalConfig.manifestWithHash, finalConfig.manifestName);
+      writeManifest(output, paths.serveDestination, finalConfig.manifestWithHash, finalConfig.manifestName);
     }
-    
+
     await finalConfig.afterBuild?.(output, buildEnv);
-    
+
     if (finalConfig.reloadOnChange && !finalConfig.waitForTSCSuccessBeforeReload) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }
-    
+
     const tscSuccess = await performTSC(finalConfig, importerMeta);
-    
+
     if (finalConfig.reloadOnChange && finalConfig.waitForTSCSuccessBeforeReload && !tscSuccess.error) {
       bunServer.publish("message", JSON.stringify({ type: "reload" }));
     }
-    
+
     if (tscSuccess.error && finalConfig.broadcastTSCErrorToClient) {
       bunServer.publish("message", JSON.stringify({ type: "tscerror", message: tscSuccess.message }));
     }
@@ -116,11 +116,11 @@ function publishOutputLogs(
   event: FileChangeInfo<string>
 ): void {
   output.logs.forEach(console.log);
-  bunServer.publish("message", JSON.stringify({ 
-    type: "message", 
-    message: `[Bun HMR] ${event.filename} ${event.eventType}` 
+  bunServer.publish("message", JSON.stringify({
+    type: "message",
+    message: `[Bun HMR] ${event.filename} ${event.eventType}`
   }));
-  
+
   const outTable = output.outputs.filter(o => o.kind !== "sourcemap").map(o => {
     const a = Bun.pathToFileURL(o.path);
     const distPath = Bun.pathToFileURL(config.buildConfig.outdir ?? "./dist");
@@ -134,11 +134,11 @@ function publishOutputLogs(
       size: convertBytes(o.size)
     };
   });
-  
+
   if (config.broadcastBuildOutputToConsole) {
     printPrettyBuildOutput(outTable);
   }
-  
+
   if (config.broadcastBuildOutputToClient) {
     bunServer.publish("message", JSON.stringify({ type: "output", message: outTable }));
   }
@@ -152,7 +152,7 @@ function publishOutputLogs(
  * @param _event - The file change event (unused, kept for consistency)
  */
 function publishIndexHTML(
-  destinationPath: string,
+  paths: BuildEnvPaths,
   template: string,
   output: BuildOutput,
   _event: FileChangeInfo<string>
@@ -160,24 +160,23 @@ function publishIndexHTML(
   const eps = output.outputs.filter(o => o.kind === "entry-point");
   const hashedImports: string[] = [];
   const cssFiles: string[] = [];
-  
-  const basePathUrl = Bun.pathToFileURL(destinationPath);
-  
+
+  const basePathUrl = Bun.pathToFileURL(paths.serveDestination);
   for (const ep of eps) {
     const epUrl = Bun.pathToFileURL(ep.path);
-    const hashedImport = `${epUrl.href.replace(basePathUrl.href, "")}?${ep.hash}`;
+    const hashedImport = `${epUrl.href.replace(`${basePathUrl.href}/`, "./")}?${ep.hash}`;
     hashedImports.push(hashedImport);
   }
-  
+
   // Collect CSS files from build output
   const cssOutputs = output.outputs.filter(o => o.path.endsWith(".css"));
   for (const cssFile of cssOutputs) {
     const cssUrl = Bun.pathToFileURL(cssFile.path);
-    const hashedCss = `${cssUrl.href.replace(basePathUrl.href, "")}?${cssFile.hash}`;
+    const hashedCss = `${cssUrl.href.replace(`${basePathUrl.href}/`, "./")}?${cssFile.hash}`;
     cssFiles.push(hashedCss);
   }
-  
-  Bun.write(destinationPath + "/index.html", render(template, { hashedImports, cssFiles }));
+
+  Bun.write(paths.buildDestination + "/index.html", render(template, { hashedImports, cssFiles }));
 }
 
 /**
@@ -186,13 +185,13 @@ function publishIndexHTML(
  */
 function printPrettyBuildOutput(outTable: Array<{ name: string; path: string; size: string }>): void {
   if (outTable.length === 0) return;
-  
+
   const totalFiles = outTable.length;
   const fileWord = totalFiles === 1 ? 'file' : 'files';
-  
+
   // Header with emoji and count
   console.log("\n" + pc.bold(pc.cyan(`📦 Build Output (${totalFiles} ${fileWord})`)));
-  
+
   // List each file with checkmark
   outTable.forEach((row) => {
     const checkmark = pc.green("  ✓");
@@ -200,6 +199,6 @@ function printPrettyBuildOutput(outTable: Array<{ name: string; path: string; si
     const size = pc.dim(`(${row.size})`);
     console.log(`${checkmark} ${filePath} ${size}`);
   });
-  
+
   console.log(""); // Empty line for spacing
 }
