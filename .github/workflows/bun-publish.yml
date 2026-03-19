@@ -1,0 +1,46 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Node.js Package
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # Required for OIDC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: salsify/action-detect-and-tag-new-version@v2
+        id: tagauto
+        with:
+          create-tag: true
+      - name: list tag output
+        run: |
+          # echo "old ${{ steps.autotag.outputs.old_tag }}"
+          # echo "new ${{ steps.autotag.outputs.new_tag }}"
+          # echo "tag ${{ steps.autotag.outputs.tag }}"
+          # echo "part ${{ steps.autotag.outputs.part }}"
+          echo "previous-version ${{ steps.tagauto.outputs.previous-version }}"
+          echo "current-version ${{ steps.tagauto.outputs.current-version }}"
+          echo "tagautotag ${{ steps.tagauto.outputs.tag }}"
+
+      - uses: oven-sh/setup-bun@v2
+        name: Setup Bun
+      - uses: actions/setup-node@v6
+        name: Setup Node.js
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - run: bun install
+      - run: bun run build
+      - run: npm publish
+        if: steps.tagauto.outputs.previous-version != steps.tagauto.outputs.current-version && steps.tagauto.outputs.current-version != ''

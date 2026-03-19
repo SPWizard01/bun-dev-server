@@ -1,7 +1,7 @@
 /**
  * HTTP request handling
  */
-import { render } from "ejs";
+import ejs from "ejs";
 import { readFile, readdir } from "fs/promises";
 import { type BunDevServerConfig } from "./bunServeConfig";
 import { withCORSHeaders } from "./utils/cors";
@@ -128,7 +128,7 @@ async function handleDirectoryRequest(
       });
 
     const templatePath = requestPath === "/" ? "" : requestPath;
-    const rnd = render(finalConfig.serveOutputEjs!, {
+    const rnd = ejs.render(finalConfig.serveOutputEjs!, {
       dirs,
       files,
       requestPath: templatePath,

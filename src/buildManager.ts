@@ -1,7 +1,7 @@
 /**
  * Build and notification management
  */
-import { render } from "ejs";
+import ejs from "ejs";
 import { build, type BuildConfig, type BuildOutput, type Server } from "bun";
 import { type FileChangeInfo } from "fs/promises";
 import pqueue from "p-queue";
@@ -176,7 +176,7 @@ function publishIndexHTML(
     cssFiles.push(hashedCss);
   }
 
-  Bun.write(paths.buildDestination + "/index.html", render(template, { hashedImports, cssFiles }));
+  Bun.write(paths.buildDestination + "/index.html", ejs.render(template, { hashedImports, cssFiles }));
 }
 
 /**
