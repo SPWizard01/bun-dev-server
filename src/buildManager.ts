@@ -1,7 +1,8 @@
 /**
  * Build and notification management
  */
-import ejs from "ejs";
+//@ts-ignore
+import ejs from "../node_modules/ejs/ejs";
 import { build, type BuildConfig, type BuildOutput, type Server } from "bun";
 import { type FileChangeInfo } from "fs/promises";
 import pqueue from "p-queue";

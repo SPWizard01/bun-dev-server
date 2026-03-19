@@ -1,7 +1,8 @@
 /**
  * HTTP request handling
  */
-import ejs from "ejs";
+//@ts-ignore
+import ejs from "../node_modules/ejs/ejs";
 import { readFile, readdir } from "fs/promises";
 import { type BunDevServerConfig } from "./bunServeConfig";
 import { withCORSHeaders } from "./utils/cors";
